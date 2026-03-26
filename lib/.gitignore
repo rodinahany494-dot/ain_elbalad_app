@@ -1,0 +1,12 @@
+/build/
+/.dart_tool/
+/android/.gradle/
+/ios/Pods/
+/ios/.symlinks/
+
+*.log
+*.lock
+
+# Firebase (مهم جدًا)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
