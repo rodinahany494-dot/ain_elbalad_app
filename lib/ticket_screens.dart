@@ -45,7 +45,7 @@ Widget _buildUnifiedNavBar({
   }
 
   return Padding(
-    padding: const EdgeInsets.only(bottom: 16),
+    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
     child: Center(
       child: SizedBox(
         width: 343,
@@ -143,19 +143,25 @@ class ReportSummary {
 class StatusUpdateItem {
   final String newStatus;
   final String content;
+  final String date;
+  final String time;
   final String timestamp;
 
   StatusUpdateItem({
     required this.newStatus,
     required this.content,
+    required this.date,
+    required this.time,
     required this.timestamp,
   });
 
   factory StatusUpdateItem.fromJson(Map<String, dynamic> json) {
     return StatusUpdateItem(
-      newStatus: (json['new_status'] ?? '').toString(),
-      content: (json['content'] ?? '').toString(),
-      timestamp: (json['timestamp'] ?? '').toString(),
+      newStatus: (json['status'] ?? json['new_status'] ?? '').toString(),
+      content: (json['info'] ?? json['content'] ?? '').toString(),
+      date: (json['date'] ?? '').toString(),
+      time: (json['time'] ?? '').toString(),
+      timestamp: (json['timestamp'] ?? json['date'] ?? '').toString(),
     );
   }
 }
@@ -192,23 +198,29 @@ class ReportDetails {
   });
 
   factory ReportDetails.fromJson(Map<String, dynamic> json) {
-    final updates = (json['status_updates'] as List<dynamic>? ?? [])
+    final detailsJson = (json['details'] is Map<String, dynamic>)
+        ? json['details'] as Map<String, dynamic>
+        : json;
+    final timeline = (json['timeline'] as List<dynamic>? ??
+            detailsJson['timeline'] as List<dynamic>? ??
+            detailsJson['status_updates'] as List<dynamic>? ??
+            [])
         .map((e) => StatusUpdateItem.fromJson(e as Map<String, dynamic>))
         .toList();
     return ReportDetails(
-      reportId: (json['report_id'] ?? 0) as int,
-      title: (json['title'] ?? '').toString(),
-      description: (json['description'] ?? '').toString(),
-      reportType: (json['report_type'] ?? '').toString(),
-      locationAddress: (json['location_address'] ?? '').toString(),
-      latitude: (json['latitude'] ?? '').toString(),
-      longitude: (json['longitude'] ?? '').toString(),
-      priorityLevel: (json['priority_level'] ?? '').toString(),
-      currentStatus: (json['current_status'] ?? '').toString(),
-      reportDate: (json['report_date'] ?? '').toString(),
-      photoUrl: _normalizeImageUrl(json['photo_url'] ?? json['photo']),
-      statusUpdates: updates,
-      department: (json['department'] ?? json['category'] ?? json['ai_category'])?.toString(),
+      reportId: (detailsJson['report_id'] ?? 0) as int,
+      title: (detailsJson['title'] ?? '').toString(),
+      description: (detailsJson['description'] ?? '').toString(),
+      reportType: (detailsJson['report_type'] ?? '').toString(),
+      locationAddress: (detailsJson['location_address'] ?? '').toString(),
+      latitude: (detailsJson['latitude'] ?? '').toString(),
+      longitude: (detailsJson['longitude'] ?? '').toString(),
+      priorityLevel: (detailsJson['priority_level'] ?? '').toString(),
+      currentStatus: (detailsJson['current_status'] ?? '').toString(),
+      reportDate: (detailsJson['report_date'] ?? '').toString(),
+      photoUrl: _normalizeImageUrl(detailsJson['photo_url'] ?? detailsJson['photo']),
+      statusUpdates: timeline,
+      department: (detailsJson['department'] ?? detailsJson['category'] ?? detailsJson['ai_category'])?.toString(),
     );
   }
 }
@@ -543,8 +555,14 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
                     decoration: InputDecoration(
                       hintText: 'Add description',
                       hintStyle: const TextStyle(fontSize: 14),
-                      prefixIcon:
-                          const Icon(Icons.mic, color: accentOrange, size: 24),
+                      prefixIcon: IconButton(
+                        onPressed: _toggleListening,
+                        icon: Icon(
+                          _isListening ? Icons.mic : Icons.mic_none,
+                          color: _isListening ? brandBlue : accentOrange,
+                          size: 24,
+                        ),
+                      ),
                       prefixIconConstraints:
                           const BoxConstraints(minWidth: 32, minHeight: 32),
                       suffixIcon: IconButton(
@@ -572,9 +590,9 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
                 ),
               ],
             ),
-          ],
+            ],
+          ),
         ),
-      ),
     );
   }
 }
@@ -1107,10 +1125,7 @@ class _TrackTicketScreenState extends State<TrackTicketScreen> {
     }
     final body = jsonDecode(res.body);
     final data = _extractDataMap(body);
-    final details = (data['details'] is Map<String, dynamic>)
-        ? data['details'] as Map<String, dynamic>
-        : data;
-    return ReportDetails.fromJson(details);
+    return ReportDetails.fromJson(data);
   }
 
   void _goHome() {
@@ -1145,17 +1160,21 @@ class _TrackTicketScreenState extends State<TrackTicketScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        toolbarHeight: 92,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back, color: Colors.black),
         ),
-        title: Text(
-          "Track My Ticket",
-          style: TextStyle(
-            color: primaryBlue,
-            fontWeight: FontWeight.bold,
-            fontSize: 24,
-            fontFamily: 'Roboto',
+        title: const Padding(
+          padding: EdgeInsets.only(top: 8),
+          child: Text(
+            "Track My Ticket",
+            style: TextStyle(
+              color: Color(0xFF004E98),
+              fontWeight: FontWeight.bold,
+              fontSize: 24,
+              fontFamily: 'Roboto',
+            ),
           ),
         ),
         centerTitle: true,
@@ -1178,7 +1197,7 @@ class _TrackTicketScreenState extends State<TrackTicketScreen> {
             children: [
               Center(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  padding: const EdgeInsets.only(top: 24),
                   child: Container(
                     width: 343,
                     height: 101,
@@ -1245,7 +1264,7 @@ class _TrackTicketScreenState extends State<TrackTicketScreen> {
                 ),
               ),
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 50.0),
+                padding: EdgeInsets.only(top: 28, left: 50.0, right: 50.0),
                 child: Divider(thickness: 1),
               ),
               Expanded(
@@ -1297,8 +1316,8 @@ class _TrackTicketScreenState extends State<TrackTicketScreen> {
           Column(
             children: [
               Container(
-                width: 22,
-                height: 22,
+                width: 30,
+                height: 30,
                 decoration:
                     BoxDecoration(color: accentYellow, shape: BoxShape.circle),
                 child: Center(

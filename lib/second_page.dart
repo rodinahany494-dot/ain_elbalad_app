@@ -141,29 +141,46 @@ class HomeScreen extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 22),
-                            _BottomNav(
-                              currentIndex: 1,
-                              onLocationTap: () {},
-                              onHomeTap: () {
-                                Navigator.pushNamedAndRemoveUntil(
-                                    context, '/home', (route) => false);
-                              },
-                              onTrackTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const TrackTicketScreen()),
-                                );
-                              },
-                              onCreateTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const CreateTicketScreen()),
-                                );
-                              },
-                            ),
                           ],
                         ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 16,
+                  child: Center(
+                    child: SizedBox(
+                      width: 343,
+                      height: 48,
+                      child: _BottomNav(
+                        currentIndex: 1,
+                        onLocationTap: () {},
+                        onHomeTap: () {
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            '/home',
+                            (route) => false,
+                          );
+                        },
+                        onTrackTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const TrackTicketScreen(),
+                            ),
+                          );
+                        },
+                        onCreateTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CreateTicketScreen(),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),

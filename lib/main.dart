@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 import 'app_config.dart';
 import 'app_session.dart';
@@ -859,7 +860,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) => const SignUpScreen()),
+                                    builder: (_) => const StyledSignUpScreen()),
                               );
                             },
                             child: const Text(
@@ -978,6 +979,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController =
       TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
+  final TextEditingController birthDateController = TextEditingController();
 
   bool hidePassword1 = true;
   bool hidePassword2 = true;
@@ -997,13 +1000,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
     setState(() {});
   }
-
+  
   @override
-  void dispose() {
-    passwordController.dispose();
-    confirmPasswordController.dispose();
-    super.dispose();
-  }
+void dispose() {
+  firstNameController.dispose();
+  lastNameController.dispose();
+  phoneController.dispose();           // 👈 مهم
+  emailController.dispose();
+  birthDateController.dispose();      // 👈 مهم
+  passwordController.dispose();
+  confirmPasswordController.dispose();
+  super.dispose();
+}
 
   bool _hasMinLength(String v) => v.length >= 8;
   bool _hasUppercase(String v) => RegExp(r'[A-Z]').hasMatch(v);
@@ -1026,26 +1034,56 @@ class _SignUpScreenState extends State<SignUpScreen> {
         "https://deanne-thoughtless-extendedly.ngrok-free.dev/api/user/register");
 
     try {
+      final firstName = firstNameController.text.trim();
+      final lastName = lastNameController.text.trim();
+      final phone = phoneController.text.trim();
+      final email = emailController.text.trim();
+      final dateOfBirth = birthDateController.text.trim();
+      final password = passwordController.text.trim();
+      final confirmPassword = confirmPasswordController.text.trim();
+
+      if (firstName.isEmpty ||
+          lastName.isEmpty ||
+          phone.isEmpty ||
+          email.isEmpty ||
+          dateOfBirth.isEmpty ||
+          password.isEmpty ||
+          confirmPassword.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Please fill all required fields"),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       final response = await http.post(
         url,
-        headers: {"Content-Type": "application/json"},
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
         body: jsonEncode({
-          "first_name": firstNameController.text.trim(),
-          "last_name": lastNameController.text.trim(),
-          "email": emailController.text.trim(),
-          "password": passwordController.text.trim(),
-          "password_confirmation": confirmPasswordController.text.trim(),
+          "first_name": firstName,
+          "last_name": lastName,
+          "phone": phone,
+          "email": email,
+          "date_of_birth": dateOfBirth,
+          "password": password,
+          "password_confirmation": confirmPassword,
         }),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
+        print("Verification Code: ${data['verification_code']}");
         print("✅ Sign Up Success: $data");
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Account created successfully ✅"),
-            backgroundColor: Colors.green,
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OtpVerifyScreen(email: email),
           ),
         );
       } else {
@@ -1095,12 +1133,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
               ),
               const Padding(
-                padding: EdgeInsets.only(top: 10, bottom: 30),
+                padding: EdgeInsets.only(top: 4, bottom: 18),
                 child: Text(
                   "Create Account",
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                      fontSize: 32,
+                      fontSize: 24,
                       fontWeight: FontWeight.w800,
                       color: Color(0xff044a8d)),
                 ),
@@ -1144,9 +1182,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               // ===== Password =====
               TextField(
                 controller: passwordController,
-                obscureText: hidePassword1,
                 decoration: InputDecoration(
-                  hintText: "Password",
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide(color: pwdBorderColor)),
@@ -1252,10 +1288,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: 25),
               // ===== Sign Up Button =====
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
+              Center(
+                child: SizedBox(
+                  width: 343,
+                  height: 48,
+                  child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFFA500),
                     shape: RoundedRectangleBorder(
@@ -1265,9 +1302,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   child: const Text(
                     "Sign Up",
                     style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: Color(0xff000000)),
+                  ),
                   ),
                 ),
               ),
@@ -1527,7 +1565,8 @@ class _VerificationScreenState extends State<VerificationScreen> {
     setState(() => _isLoading = true);
 
     final url = Uri.parse(
-        'https://deanne-thoughtless-extendedly.ngrok-free.dev/api/user/password/verify');
+      'https://deanne-thoughtless-extendedly.ngrok-free.dev/api/user/password/verify',
+    );
 
     try {
       // إرسال الإيميل والكود مع بعض للـ Backend
@@ -2018,6 +2057,314 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     );
   }
 }
+class OtpCircleField extends StatelessWidget {
+  const OtpCircleField({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: const Color(0xFF5F5F5F),
+          width: 1,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: const TextField(
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        maxLength: 1,
+        style: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w600,
+        ),
+        decoration: InputDecoration(
+          counterText: "",
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+          contentPadding: EdgeInsets.zero,
+          isCollapsed: true,
+        ),
+      ),
+    );
+  }
+}
+
+class OtpVerifyScreen extends StatefulWidget {
+  final String email;
+
+  const OtpVerifyScreen({
+    super.key,
+    required this.email,
+  });
+
+  @override
+  State<OtpVerifyScreen> createState() => _OtpVerifyScreenState();
+}
+
+class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
+  final TextEditingController _otp1Controller = TextEditingController();
+  final TextEditingController _otp2Controller = TextEditingController();
+  final TextEditingController _otp3Controller = TextEditingController();
+  final TextEditingController _otp4Controller = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _otp1Controller.dispose();
+    _otp2Controller.dispose();
+    _otp3Controller.dispose();
+    _otp4Controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _verifyEmail() async {
+    final code = [
+      _otp1Controller.text.trim(),
+      _otp2Controller.text.trim(),
+      _otp3Controller.text.trim(),
+      _otp4Controller.text.trim(),
+    ].join();
+
+    if (code.length != 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter the 4-digit code')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConfig.verifyEmail),
+        headers: const {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'email': widget.email,
+          'code': code,
+          'verification_code': code,
+        }),
+      );
+
+      if (!mounted) return;
+
+      dynamic data;
+      if (response.body.isNotEmpty) {
+        try {
+          data = jsonDecode(response.body);
+        } catch (_) {
+          data = null;
+        }
+      }
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        await AppSession.clear();
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      } else {
+        final message = data is Map<String, dynamic>
+            ? (data['message']?.toString() ?? 'Verification failed')
+            : 'Verification failed';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Verify failed: ${response.statusCode} $message')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Verify error: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Widget _digitField(TextEditingController controller) {
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: const Color(0xFF5F5F5F),
+          width: 1,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: TextField(
+        controller: controller,
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        maxLength: 1,
+        style: const TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w600,
+        ),
+        decoration: const InputDecoration(
+          counterText: "",
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+          contentPadding: EdgeInsets.zero,
+          isCollapsed: true,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 20),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.black),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: SizedBox(
+                  width: 343,
+                  height: 365,
+                  child: Image.asset(
+                    'assets/otp_image.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Column(
+                    children: [
+                      const Text(
+                        "To keep your account secure and verify your\nemail, We've sent a 4-digit OTP code",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          height: 1.5,
+                          letterSpacing: 0.15,
+                          color: Color(0xFF000000),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        "to ${widget.email}",
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          height: 1.5,
+                          letterSpacing: 0.15,
+                          color: Color(0xFF000000),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Center(
+                child: SizedBox(
+                  width: 343,
+                  height: 60,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _digitField(_otp1Controller),
+                      _digitField(_otp2Controller),
+                      _digitField(_otp3Controller),
+                      _digitField(_otp4Controller),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: RichText(
+                  textAlign: TextAlign.center,
+                  text: const TextSpan(
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Color(0xFF000000),
+                    ),
+                    children: [
+                      TextSpan(text: "Didn't receive email? "),
+                      TextSpan(
+                        text: "Resend OTP",
+                        style: TextStyle(
+                          color: Color(0xFF004E98),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: 343,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _verifyEmail,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFA500),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.black,
+                          ),
+                        )
+                      : const Text(
+                          "Verify",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF000000),
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 // ================== Helpers ==================
 class FieldLabel extends StatelessWidget {
@@ -2094,4 +2441,541 @@ class CustomFormField extends StatelessWidget {
     );
   }
 }
+
+class StyledSignUpScreen extends StatefulWidget {
+  const StyledSignUpScreen({super.key});
+
+  @override
+  State<StyledSignUpScreen> createState() => _StyledSignUpScreenState();
+}
+
+class _StyledSignUpScreenState extends State<StyledSignUpScreen> {
+  final TextEditingController firstNameController = TextEditingController();
+  final TextEditingController lastNameController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController birthDateController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
+  DateTime? _selectedBirthDate;
+
+  bool _hidePassword = true;
+  bool _hideConfirmPassword = true;
+  bool _agreedToPolicy = false;
+  bool _passwordTouched = false;
+
+  @override
+  void initState() {
+    super.initState();
+    passwordController.addListener(_onPasswordChanged);
+  }
+
+  @override
+  void dispose() {
+    firstNameController.dispose();
+    lastNameController.dispose();
+    phoneController.dispose();
+    emailController.dispose();
+    birthDateController.dispose();
+    passwordController.dispose();
+    confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  void _onPasswordChanged() {
+    if (!_passwordTouched && passwordController.text.isNotEmpty) {
+      setState(() => _passwordTouched = true);
+      return;
+    }
+    setState(() {});
+  }
+
+  bool _hasMinLength(String v) => v.length >= 8;
+  bool _hasUppercase(String v) => RegExp(r'[A-Z]').hasMatch(v);
+  bool _hasNumber(String v) => RegExp(r'\d').hasMatch(v);
+  bool _hasSpecial(String v) => RegExp(r'[*&#@]').hasMatch(v);
+
+  bool _allRulesPassed(String v) =>
+      _hasMinLength(v) && _hasUppercase(v) && _hasNumber(v) && _hasSpecial(v);
+
+  Color _ruleColor(bool passed, String value) {
+    if (!_passwordTouched || value.isEmpty) {
+      return Colors.grey;
+    }
+    return passed ? Colors.green : Colors.red;
+  }
+
+  String _formatDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    return '$day/$month/${date.year}';
+  }
+
+  String _formatApiDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
+  }
+
+  Future<void> _pickBirthDate() async {
+    FocusScope.of(context).unfocus();
+
+    final selectedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+
+    if (selectedDate != null) {
+      setState(() {
+        _selectedBirthDate = selectedDate;
+        birthDateController.text = _formatDate(selectedDate);
+      });
+    }
+  }
+
+  InputDecoration _fieldDecoration(
+    String hint, {
+    Color borderColor = const Color(0xFFA0A0A0),
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(
+        color: Color(0xFFB3B3B3),
+        fontSize: 16,
+      ),
+      suffixIcon: suffixIcon,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      isDense: true,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: borderColor, width: 2),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: borderColor, width: 2),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF044A8D), width: 2.2),
+      ),
+    );
+  }
+
+  Widget _buildField({
+    required TextEditingController controller,
+    required String hint,
+    required double width,
+    TextInputType keyboardType = TextInputType.text,
+    bool obscureText = false,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    Widget? suffixIcon,
+    Color borderColor = const Color(0xFFA0A0A0),
+    List<TextInputFormatter>? inputFormatters,
+  }) {
+    return SizedBox(
+      width: width,
+      height: 48,
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        obscureText: obscureText,
+        readOnly: readOnly,
+        onTap: onTap,
+        inputFormatters: inputFormatters,
+        style: const TextStyle(fontSize: 16, color: Colors.black),
+        decoration: _fieldDecoration(
+          hint,
+          borderColor: borderColor,
+          suffixIcon: suffixIcon,
+        ),
+      ),
+    );
+  }
+
+  Future<void> signUp() async {
+    final firstName = firstNameController.text.trim();
+    final lastName = lastNameController.text.trim();
+    final phone = phoneController.text.trim();
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+    final confirmPassword = confirmPasswordController.text.trim();
+    final dateOfBirth = _selectedBirthDate != null
+        ? _formatApiDate(_selectedBirthDate!)
+        : birthDateController.text.trim();
+
+    if (firstName.isEmpty ||
+        lastName.isEmpty ||
+        phone.isEmpty ||
+        email.isEmpty ||
+        password.isEmpty ||
+        confirmPassword.isEmpty ||
+        dateOfBirth.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please fill all required fields"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (password != confirmPassword) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Password confirmation does not match"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final response = await http.post(
+      Uri.parse(ApiConfig.register),
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: jsonEncode({
+        "first_name": firstName,
+        "last_name": lastName,
+        "phone": phone,
+        "email": email,
+        "date_of_birth": dateOfBirth,
+        "password": password,
+        "password_confirmation": confirmPassword,
+      }),
+    );
+
+    if (!mounted) return;
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (!mounted) return;
+      final data = jsonDecode(response.body);
+      print("Verification Code: ${data['verification_code']}");
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OtpVerifyScreen(email: email),
+        ),
+      );
+    } else {
+      print("Sign Up Failed: ${response.statusCode} ${response.body}");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "Sign Up Failed: ${response.statusCode} ${response.body}",
+            maxLines: 3,
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fieldWidth = math.min(MediaQuery.of(context).size.width - 32, 343.0);
+    final pwd = passwordController.text;
+    final pwdBorderColor = !_passwordTouched || pwd.isEmpty
+        ? const Color(0xFFA0A0A0)
+        : (_allRulesPassed(pwd) ? Colors.green : Colors.red);
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.arrow_back, size: 28),
+                  onPressed: () => Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Center(
+                child: Text(
+                  "Create Account",
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF044A8D),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              _buildField(
+                controller: firstNameController,
+                hint: "Enter First Name",
+                width: fieldWidth,
+              ),
+              const SizedBox(height: 10),
+              _buildField(
+                controller: lastNameController,
+                hint: "Enter Last Name",
+                width: fieldWidth,
+              ),
+              const SizedBox(height: 10),
+              _buildField(
+                controller: phoneController,
+                hint: "Enter Phone Number",
+                width: fieldWidth,
+                keyboardType: TextInputType.phone,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              ),
+              const SizedBox(height: 10),
+              _buildField(
+                controller: emailController,
+                hint: "Enter Email address",
+                width: fieldWidth,
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 10),
+              _buildField(
+                controller: birthDateController,
+                hint: "DD\\MM\\YYY",
+                width: fieldWidth,
+                readOnly: true,
+                onTap: _pickBirthDate,
+              ),
+              const SizedBox(height: 14),
+              _buildField(
+                controller: passwordController,
+                hint: "Password",
+                width: fieldWidth,
+                obscureText: _hidePassword,
+                borderColor: pwdBorderColor,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _hidePassword ? Icons.visibility_off : Icons.visibility,
+                    color: Colors.grey.shade700,
+                  ),
+                  onPressed: () =>
+                      setState(() => _hidePassword = !_hidePassword),
+                ),
+              ),
+              const SizedBox(height: 6),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                child: (_passwordTouched && pwd.isNotEmpty)
+                    ? Column(
+                        key: const ValueKey('password_rules_visible'),
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    "Minimum 8 characters",
+                                    maxLines: 1,
+                                    softWrap: false,
+                                    style: TextStyle(
+                                      fontSize: 13.5,
+                                      color: _ruleColor(_hasMinLength(pwd), pwd),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    "At least one uppercase letter",
+                                    maxLines: 1,
+                                    softWrap: false,
+                                    style: TextStyle(
+                                      fontSize: 13.5,
+                                      color: _ruleColor(_hasUppercase(pwd), pwd),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    "At least one number",
+                                    maxLines: 1,
+                                    softWrap: false,
+                                    style: TextStyle(
+                                      fontSize: 13.5,
+                                      color: _ruleColor(_hasNumber(pwd), pwd),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    "At least one special character(*&#@)",
+                                    maxLines: 1,
+                                    softWrap: false,
+                                    style: TextStyle(
+                                      fontSize: 13.5,
+                                      color: _ruleColor(_hasSpecial(pwd), pwd),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      )
+                    : const SizedBox.shrink(
+                        key: ValueKey('password_rules_hidden'),
+                      ),
+              ),
+              const SizedBox(height: 10),
+              _buildField(
+                controller: confirmPasswordController,
+                hint: "Confirm Password",
+                width: fieldWidth,
+                obscureText: _hideConfirmPassword,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _hideConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                    color: Colors.grey.shade700,
+                  ),
+                  onPressed: () => setState(
+                      () => _hideConfirmPassword = !_hideConfirmPassword),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Checkbox(
+                    value: _agreedToPolicy,
+                    onChanged: (value) {
+                      setState(() => _agreedToPolicy = value ?? false);
+                    },
+                    activeColor: const Color(0xFF044A8D),
+                    side: const BorderSide(
+                      color: Color(0xFF044A8D),
+                      width: 1.5,
+                    ),
+                  ),
+                  const Text(
+                    "I agree with privacy policy",
+                    style: TextStyle(
+                      fontSize: 15.5,
+                      color: Color(0xFF044A8D),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: signUp,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFA500),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    "Sign Up",
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: Divider(
+                      color: Colors.grey.shade500,
+                      thickness: 1,
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      "Or Login with",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF555555),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Divider(
+                      color: Colors.grey.shade500,
+                      thickness: 1,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const _SocialIconsRow(),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    "Already Have An Account? ",
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.black,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    ),
+                    child: const Text(
+                      "Log in",
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Color(0xFF044A8D),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 

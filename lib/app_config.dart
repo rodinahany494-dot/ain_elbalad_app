@@ -4,6 +4,7 @@ class ApiConfig {
   static String get login => '$baseUrl/api/user/login';
   static String get socialLogin => '$baseUrl/api/user/social-login';
   static String get register => '$baseUrl/api/user/register';
+  static String get verifyEmail => '$baseUrl/api/user/verify-email';
   static String get forgotPassword => '$baseUrl/api/user/password/forgot';
   static String get verifyCode => '$baseUrl/api/user/password/verify';
   static String get resetPassword => '$baseUrl/api/user/password/reset';
