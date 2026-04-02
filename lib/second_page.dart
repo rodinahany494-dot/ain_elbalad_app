@@ -157,7 +157,12 @@ class HomeScreen extends StatelessWidget {
                       height: 48,
                       child: _BottomNav(
                         currentIndex: 1,
-                        onLocationTap: () {},
+                        onLocationTap: () {
+                          Navigator.pushNamed(
+                            context,
+                            '/map',
+                          );
+                        },
                         onHomeTap: () {
                           Navigator.pushNamedAndRemoveUntil(
                             context,

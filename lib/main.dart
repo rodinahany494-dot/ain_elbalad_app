@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'app_config.dart';
 import 'app_session.dart';
 import 'second_page.dart';
+import 'map_screen.dart';
 import 'ticket_screens.dart';
 
 void main() {
@@ -35,6 +36,7 @@ class MyApp extends StatelessWidget {
         '/home': (_) => const HomeScreen(),
         '/create': (_) => const CreateTicketScreen(),
         '/track': (_) => const TrackTicketScreen(),
+        '/map': (_) => const MapScreen(),
       },
     );
   }

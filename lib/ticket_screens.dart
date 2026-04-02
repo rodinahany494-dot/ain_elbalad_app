@@ -298,6 +298,9 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
   final TextEditingController _descriptionController = TextEditingController();
   final SpeechToText _speech = SpeechToText();
   File? _image;
+  String _locationAddress = 'Unknown';
+  double _latitude = 0;
+  double _longitude = 0;
   bool _isListening = false;
   bool _isSubmitting = false;
 
@@ -394,9 +397,9 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
       request.headers.addAll(await _authHeaders(isMultipart: true));
       request.fields['title'] = description;
       request.fields['description'] = description;
-      request.fields['latitude'] = '0';
-      request.fields['longitude'] = '0';
-      request.fields['location_address'] = 'Unknown';
+      request.fields['latitude'] = _latitude.toString();
+      request.fields['longitude'] = _longitude.toString();
+      request.fields['location_address'] = _locationAddress;
       if (_image != null) {
         request.files.add(await http.MultipartFile.fromPath('image', _image!.path));
       }
@@ -461,6 +464,27 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
     );
   }
 
+  Future<void> _openMap() async {
+    final result = await Navigator.pushNamed(context, '/map');
+    if (!mounted || result is! Map) return;
+
+    final address = result['address']?.toString();
+    final latitude = result['latitude'];
+    final longitude = result['longitude'];
+
+    setState(() {
+      if (address != null && address.isNotEmpty) {
+        _locationAddress = address;
+      }
+      if (latitude is num) {
+        _latitude = latitude.toDouble();
+      }
+      if (longitude is num) {
+        _longitude = longitude.toDouble();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     const double cardWidth = 343;
@@ -506,12 +530,12 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
                       ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             const Text(
               'Adding a photo is optional',
               style: TextStyle(color: Color(0xFF5F5F5F), fontSize: 12),
             ),
-            const SizedBox(height: 26),
+            const SizedBox(height: 40),
             SizedBox(
               width: buttonWidth,
               height: buttonHeight,
@@ -541,11 +565,14 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 24),
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Icon(Icons.location_on, color: brandBlue, size: 24),
+                GestureDetector(
+                  onTap: _openMap,
+                  child: const Icon(Icons.location_on, color: brandBlue, size: 24),
+                ),
                 const SizedBox(width: 8),
                 SizedBox(
                   width: 311,
@@ -888,8 +915,9 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> {
   }
 
   void _showMapNotReady() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Map screen is not added yet.')),
+    Navigator.pushNamed(
+      context,
+      '/map',
     );
   }
 
@@ -1150,8 +1178,9 @@ class _TrackTicketScreenState extends State<TrackTicketScreen> {
   }
 
   void _showMapNotReady() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Map screen is not added yet.')),
+    Navigator.pushNamed(
+      context,
+      '/map',
     );
   }
 
