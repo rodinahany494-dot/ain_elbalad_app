@@ -6,70 +6,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'app_config.dart';
 import 'app_session.dart';
-
-enum _NavItem { location, home, track, create }
-
-Widget _buildUnifiedNavBar({
-  required _NavItem active,
-  required VoidCallback onLocation,
-  required VoidCallback onHome,
-  required VoidCallback onTrack,
-  required VoidCallback onCreate,
-}) {
-  const blue = Color(0xFF004E98);
-  const activeYellow = Color(0xFFFFB200);
-
-  Widget iconItem(IconData icon, _NavItem item, VoidCallback onTap) {
-    final isActive = item == active;
-    if (isActive) {
-      return InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          width: 32,
-          height: 32,
-          decoration: const BoxDecoration(
-            color: activeYellow,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: Colors.white, size: 24),
-        ),
-      );
-    }
-    return IconButton(
-      onPressed: onTap,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(),
-      icon: Icon(icon, color: Colors.white, size: 24),
-    );
-  }
-
-  return Padding(
-    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-    child: Center(
-      child: SizedBox(
-        width: 343,
-        height: 48,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: blue,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              iconItem(Icons.location_on_outlined, _NavItem.location, onLocation),
-              iconItem(Icons.home, _NavItem.home, onHome),
-              iconItem(Icons.local_shipping_outlined, _NavItem.track, onTrack),
-              iconItem(Icons.note_add_outlined, _NavItem.create, onCreate),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-}
+import 'widgets/app_bottom_nav.dart';
 
 Map<String, dynamic> _extractDataMap(dynamic body) {
   if (body is! Map<String, dynamic>) {
@@ -485,6 +422,23 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
     });
   }
 
+  void _goHome() {
+    Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+  }
+
+  void _goTrack() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const TrackTicketScreen()),
+    );
+  }
+
+  void _goCreate() {}
+
+  void _showMapNotReady() {
+    _openMap();
+  }
+
   @override
   Widget build(BuildContext context) {
     const double cardWidth = 343;
@@ -509,117 +463,141 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            Center(
-              child: Container(
-                width: cardWidth,
-                height: cardHeight,
-                decoration: BoxDecoration(
-                  color: Colors.grey[400],
-                  borderRadius: BorderRadius.zero,
-                ),
-                child: _image == null
-                    ? const Icon(Icons.camera_alt_outlined,
-                        size: 90, color: Colors.white)
-                    : ClipRRect(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0).copyWith(bottom: 110),
+              child: Column(
+                children: [
+                  Center(
+                    child: Container(
+                      width: cardWidth,
+                      height: cardHeight,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[400],
                         borderRadius: BorderRadius.zero,
-                        child: Image.file(_image!, fit: BoxFit.cover),
                       ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Adding a photo is optional',
-              style: TextStyle(color: Color(0xFF5F5F5F), fontSize: 12),
-            ),
-            const SizedBox(height: 40),
-            SizedBox(
-              width: buttonWidth,
-              height: buttonHeight,
-              child: ElevatedButton(
-                onPressed: _showImageSourceSheet,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: uploadBlue,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Text(
-                      'Upload Photo',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
+                      child: _image == null
+                          ? const Icon(Icons.camera_alt_outlined,
+                              size: 90, color: Colors.white)
+                          : ClipRRect(
+                              borderRadius: BorderRadius.zero,
+                              child: Image.file(_image!, fit: BoxFit.cover),
+                            ),
                     ),
-                    SizedBox(height: 8),
-                    Icon(Icons.camera_alt_outlined,
-                        color: Colors.white, size: 40),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                GestureDetector(
-                  onTap: _openMap,
-                  child: const Icon(Icons.location_on, color: brandBlue, size: 24),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 311,
-                  height: 40,
-                  child: TextField(
-                    controller: _descriptionController,
-                    decoration: InputDecoration(
-                      hintText: 'Add description',
-                      hintStyle: const TextStyle(fontSize: 14),
-                      prefixIcon: IconButton(
-                        onPressed: _toggleListening,
-                        icon: Icon(
-                          _isListening ? Icons.mic : Icons.mic_none,
-                          color: _isListening ? brandBlue : accentOrange,
-                          size: 24,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Adding a photo is optional',
+                    style: TextStyle(color: Color(0xFF5F5F5F), fontSize: 12),
+                  ),
+                  const SizedBox(height: 40),
+                  SizedBox(
+                    width: buttonWidth,
+                    height: buttonHeight,
+                    child: ElevatedButton(
+                      onPressed: _showImageSourceSheet,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: uploadBlue,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      prefixIconConstraints:
-                          const BoxConstraints(minWidth: 32, minHeight: 32),
-                      suffixIcon: IconButton(
-                        icon: Icon(Icons.send,
-                            color: _isSubmitting ? Colors.grey : brandBlue),
-                        onPressed: _isSubmitting ? null : _submitReport,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Text(
+                            'Upload Photo',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Icon(Icons.camera_alt_outlined,
+                              color: Colors.white, size: 40),
+                        ],
                       ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(0),
-                        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(0),
-                        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(0),
-                        borderSide:
-                            const BorderSide(color: brandBlue, width: 1.5),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          vertical: 8, horizontal: 8),
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 24),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      GestureDetector(
+                        onTap: _openMap,
+                        child: const Icon(Icons.location_on,
+                            color: brandBlue, size: 24),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 311,
+                        height: 40,
+                        child: TextField(
+                          controller: _descriptionController,
+                          decoration: InputDecoration(
+                            hintText: 'Add description',
+                            hintStyle: const TextStyle(fontSize: 14),
+                            prefixIcon: IconButton(
+                              onPressed: _toggleListening,
+                              icon: Icon(
+                                Icons.mic,
+                                color: _isListening ? brandBlue : accentOrange,
+                                size: 24,
+                              ),
+                            ),
+                            prefixIconConstraints: const BoxConstraints(
+                                minWidth: 32, minHeight: 32),
+                            suffixIcon: IconButton(
+                              icon: Icon(Icons.send,
+                                  color:
+                                      _isSubmitting ? Colors.grey : brandBlue),
+                              onPressed: _isSubmitting ? null : _submitReport,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(0),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFFE0E0E0)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(0),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFFE0E0E0)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(0),
+                              borderSide:
+                                  const BorderSide(color: brandBlue, width: 1.5),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                                vertical: 8, horizontal: 8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            ],
           ),
-        ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 16,
+            child: Center(
+              child: AppBottomNav(
+                currentIndex: 3,
+                onLocationTap: _showMapNotReady,
+                onHomeTap: _goHome,
+                onTrackTap: _goTrack,
+                onCreateTap: _goCreate,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -753,29 +731,12 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                                       ),
                                     ),
                                     Text(
-                                      show(t.locationAddress),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Colors.black54,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    Text(
                                       'ID #${t.reportId}',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.w500,
                                         fontSize: 12,
                                       ),
                                     ),
-                                  Text(
-                                    show(t.currentStatus),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black,
-                                      fontSize: 12,
-                                    ),
-                                  ),
                                   Text(
                                     show(
                                       '${_formatDate(t.reportDate)} - ${_formatTime(t.reportDate)}',
@@ -807,26 +768,9 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                               ),
                             ),
                             Text(
-                              show(t.locationAddress),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.black54,
-                                fontSize: 12,
-                              ),
-                            ),
-                            Text(
                               'ID #${t.reportId}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w500,
-                                fontSize: 12,
-                              ),
-                            ),
-                            Text(
-                              show(t.currentStatus),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
                                 fontSize: 12,
                               ),
                             ),
@@ -1041,12 +985,12 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> {
               },
             ),
           ),
-          _buildUnifiedNavBar(
-            active: _NavItem.home,
-            onLocation: _showMapNotReady,
-            onHome: _goHome,
-            onTrack: _goTrack,
-            onCreate: _goCreate,
+          AppBottomNav(
+            currentIndex: 1,
+            onLocationTap: _showMapNotReady,
+            onHomeTap: _goHome,
+            onTrackTap: _goTrack,
+            onCreateTap: _goCreate,
           ),
         ],
       ),
@@ -1210,111 +1154,130 @@ class _TrackTicketScreenState extends State<TrackTicketScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
       ),
-      body: FutureBuilder<ReportDetails>(
-        future: _trackFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(
-              child: Text('Failed to load tracking: ${snapshot.error}'),
-            );
-          }
-          final d = snapshot.data!;
-          return Column(
-            children: [
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 24),
-                  child: Container(
-                    width: 343,
-                    height: 101,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: lightCardBg,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            width: 75,
-                            height: 75,
-                            color: Colors.white.withOpacity(0.6),
-                            child: d.photoUrl == null || d.photoUrl!.isEmpty
-                                ? Icon(Icons.image, color: primaryBlue)
-                                : Image.network(d.photoUrl!, fit: BoxFit.cover),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: FutureBuilder<ReportDetails>(
+              future: _trackFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Failed to load tracking: ${snapshot.error}'),
+                  );
+                }
+                final d = snapshot.data!;
+                final issueName = (d.department?.isNotEmpty == true)
+                    ? d.department!
+                    : (d.title.isNotEmpty ? d.title : '-');
+                return Column(
+                  children: [
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 24),
+                        child: Container(
+                          width: 343,
+                          height: 101,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: lightCardBg,
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          child: Row(
                             children: [
-                              Text(
-                                d.title,
-                                style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  width: 85,
+                                  height: 85,
+                                  color: Colors.white.withOpacity(0.6),
+                                  child: d.photoUrl == null || d.photoUrl!.isEmpty
+                                      ? Icon(Icons.image, color: primaryBlue)
+                                      : Image.network(d.photoUrl!,
+                                          fit: BoxFit.cover),
+                                ),
                               ),
-                              Text(
-                                d.locationAddress,
-                                style: TextStyle(
-                                    color: Colors.grey[800], fontSize: 13),
-                              ),
-                              const SizedBox(height: 2),
-                              Row(
-                                children: [
-                                  const Text("ID ",
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13)),
-                                  Text("#${d.reportId}",
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      issueName,
                                       style: const TextStyle(
+                                          fontSize: 16,
                                           fontWeight: FontWeight.bold,
-                                          fontSize: 13)),
-                                ],
-                              ),
-                              Text(
-                                _formatDate(d.reportDate),
-                                style: TextStyle(
-                                    color: Colors.grey[600], fontSize: 11),
+                                          color: Colors.black87),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      children: [
+                                        const Text("ID ",
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12)),
+                                        Text("#${d.reportId}",
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12)),
+                                      ],
+                                    ),
+                                    Text(
+                                      _formatDate(d.reportDate),
+                                      style: TextStyle(
+                                          color: Color(0xFF404040),
+                                          fontSize: 12),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 28, left: 50.0, right: 50.0),
+                      child: Divider(thickness: 1),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 25),
+                        itemCount: d.statusUpdates.length,
+                        itemBuilder: (context, index) {
+                          final u = d.statusUpdates[index];
+                          return _buildStep(
+                            u,
+                            index,
+                            index == d.statusUpdates.length - 1,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 16,
+            child: Center(
+              child: AppBottomNav(
+                currentIndex: 2,
+                onLocationTap: _showMapNotReady,
+                onHomeTap: _goHome,
+                onTrackTap: _goTrack,
+                onCreateTap: _goCreate,
               ),
-              const Padding(
-                padding: EdgeInsets.only(top: 28, left: 50.0, right: 50.0),
-                child: Divider(thickness: 1),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 25),
-                  itemCount: d.statusUpdates.length,
-                  itemBuilder: (context, index) {
-                    final u = d.statusUpdates[index];
-                    return _buildStep(
-                      u,
-                      index,
-                      index == d.statusUpdates.length - 1,
-                    );
-                  },
-                ),
-              ),
-            ],
-          );
-        },
+            ),
+          ),
+        ],
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
@@ -1350,13 +1313,10 @@ class _TrackTicketScreenState extends State<TrackTicketScreen> {
                 decoration:
                     BoxDecoration(color: accentYellow, shape: BoxShape.circle),
                 child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: const Icon(
+                    Icons.check,
+                    color: Colors.white,
+                    size: 18,
                   ),
                 ),
               ),
@@ -1398,42 +1358,6 @@ class _TrackTicketScreenState extends State<TrackTicketScreen> {
                       fontWeight: FontWeight.bold,
                       color: Colors.black)),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomNav() {
-    return Container(
-      margin: const EdgeInsets.all(15),
-      height: 60,
-      decoration: BoxDecoration(
-          color: primaryBlue, borderRadius: BorderRadius.circular(30)),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          IconButton(
-            onPressed: _showMapNotReady,
-            icon: const Icon(Icons.location_on_outlined, color: Colors.white),
-          ),
-          IconButton(
-            onPressed: _goHome,
-            icon: const Icon(Icons.home_outlined, color: Colors.white),
-          ),
-          InkWell(
-            onTap: _goTrack,
-            borderRadius: BorderRadius.circular(18),
-            child: CircleAvatar(
-              backgroundColor: accentYellow,
-              radius: 18,
-              child: const Icon(Icons.local_shipping,
-                  color: Colors.white, size: 20),
-            ),
-          ),
-          IconButton(
-            onPressed: _goCreate,
-            icon: const Icon(Icons.note_add_outlined, color: Colors.white),
           ),
         ],
       ),

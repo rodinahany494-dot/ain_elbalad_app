@@ -2980,4 +2980,3 @@ class _StyledSignUpScreenState extends State<StyledSignUpScreen> {
   }
 }
 
-

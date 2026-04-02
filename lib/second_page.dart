@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'app_config.dart';
 import 'app_session.dart';
 import 'package:ain_elbalad/ticket_screens.dart';
+import 'widgets/app_bottom_nav.dart';
 const String homeBackgroundImagePath = 'assets/home_background.png';
 
 // ====================================================================
@@ -152,41 +153,38 @@ class HomeScreen extends StatelessWidget {
                   right: 0,
                   bottom: 16,
                   child: Center(
-                    child: SizedBox(
-                      width: 343,
-                      height: 48,
-                      child: _BottomNav(
-                        currentIndex: 1,
-                        onLocationTap: () {
-                          Navigator.pushNamed(
-                            context,
-                            '/map',
-                          );
-                        },
-                        onHomeTap: () {
-                          Navigator.pushNamedAndRemoveUntil(
-                            context,
-                            '/home',
-                            (route) => false,
-                          );
-                        },
-                        onTrackTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const TrackTicketScreen(),
-                            ),
-                          );
-                        },
-                        onCreateTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const CreateTicketScreen(),
-                            ),
-                          );
-                        },
-                      ),
+                    child: AppBottomNav(
+                      currentIndex: 1,
+                      onLocationTap: () {
+                        Navigator.pushNamed(
+                          context,
+                          '/map',
+                        );
+                      },
+                      onHomeTap: () {
+                        Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          '/home',
+                          (route) => false,
+                        );
+                      },
+                      onTrackTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const TrackTicketScreen(),
+                          ),
+                        );
+                      },
+                      onCreateTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CreateTicketScreen(),
+                          ),
+                        );
+                      },
+                      locationLoading: false,
                     ),
                   ),
                 ),
@@ -1154,69 +1152,6 @@ class _SmallActionCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _BottomNav extends StatelessWidget {
-  const _BottomNav({
-    required this.currentIndex,
-    required this.onLocationTap,
-    required this.onHomeTap,
-    required this.onTrackTap,
-    required this.onCreateTap,
-  });
-
-  final int currentIndex;
-  final VoidCallback onLocationTap;
-  final VoidCallback onHomeTap;
-  final VoidCallback onTrackTap;
-  final VoidCallback onCreateTap;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget iconItem(IconData icon, int index, VoidCallback onTap) {
-      final isActive = currentIndex == index;
-      if (isActive) {
-        return InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            width: 32,
-            height: 32,
-            decoration: const BoxDecoration(
-              color: Color(0xFFFFB200),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: Colors.white, size: 24),
-          ),
-        );
-      }
-      return IconButton(
-        onPressed: onTap,
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(),
-        icon: Icon(icon, color: Colors.white, size: 24),
-      );
-    }
-
-    return Container(
-      height: 48,
-      width: 343,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF004E98),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          iconItem(Icons.location_on_outlined, 0, onLocationTap),
-          iconItem(Icons.home, 1, onHomeTap),
-          iconItem(Icons.local_shipping_outlined, 2, onTrackTap),
-          iconItem(Icons.note_add_outlined, 3, onCreateTap),
-        ],
       ),
     );
   }

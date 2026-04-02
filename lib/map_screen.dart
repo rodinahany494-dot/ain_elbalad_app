@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'widgets/app_bottom_nav.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -534,8 +535,8 @@ class _MapScreenState extends State<MapScreen> {
           if (_isSearching || _results.isNotEmpty)
             Positioned(
               top: 85,
-              left: 15,
-              right: 15,
+              left: 16,
+              right: 16,
               child: Container(
                 constraints: const BoxConstraints(maxHeight: 240),
                 decoration: BoxDecoration(
@@ -631,76 +632,17 @@ class _MapScreenState extends State<MapScreen> {
           ),
           if (!keyboardOpen)
             Positioned(
-              bottom: 25,
-              left: 20,
-              right: 20,
+              bottom: 16,
+              left: 0,
+              right: 0,
               child: Center(
-                child: Container(
-                  width: 343,
-                  height: 56,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0A3D91),
-                    borderRadius: BorderRadius.circular(50),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black38, blurRadius: 12),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                    GestureDetector(
-                      onTap: _useCurrentLocation,
-                      child: Container(
-                        width: 46,
-                        height: 46,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFFA500),
-                          shape: BoxShape.circle,
-                        ),
-                        child: _isFetchingCurrentLocation
-                            ? const Padding(
-                                padding: EdgeInsets.all(12),
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
-                                ),
-                              )
-                            : const Icon(
-                                Icons.location_on_outlined,
-                                color: Colors.white,
-                                size: 26,
-                              ),
-                      ),
-                    ),
-                      GestureDetector(
-                        onTap: _goHome,
-                        child: const Icon(
-                          Icons.home_outlined,
-                          color: Colors.white70,
-                          size: 24,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: _goTrack,
-                        child: const Icon(
-                          Icons.local_shipping_outlined,
-                          color: Colors.white70,
-                          size: 24,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: _goCreate,
-                        child: const Icon(
-                          Icons.note_add_outlined,
-                          color: Colors.white70,
-                          size: 24,
-                        ),
-                      ),
-                    ],
-                  ),
+                child: AppBottomNav(
+                  currentIndex: 0,
+                  locationLoading: _isFetchingCurrentLocation,
+                  onLocationTap: _useCurrentLocation,
+                  onHomeTap: _goHome,
+                  onTrackTap: _goTrack,
+                  onCreateTap: _goCreate,
                 ),
               ),
             ),
