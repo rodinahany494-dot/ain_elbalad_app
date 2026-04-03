@@ -10,6 +10,15 @@ import 'second_page.dart';
 import 'map_screen.dart';
 import 'ticket_screens.dart';
 
+Route _instantRoute(Widget page) {
+  return PageRouteBuilder(
+    transitionDuration: Duration.zero,
+    reverseTransitionDuration: Duration.zero,
+    pageBuilder: (_, animation, __) => page,
+    transitionsBuilder: (_, __, ___, child) => child,
+  );
+}
+
 void main() {
   runApp(const MyApp());
 }
@@ -155,12 +164,7 @@ class Splash2Screen extends StatelessWidget {
                       height: 50,
                       child: ElevatedButton(
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const OnboardingScreen1(),
-                            ),
-                          );
+                          Navigator.push(context, _instantRoute(const OnboardingFlowScreen()));
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFFA500),
@@ -230,7 +234,200 @@ class TechnicianScreen extends StatelessWidget {
 }
 
 // ====================================================================
-// 2. Onboarding Screen 1
+// 2. Onboarding Flow Screen
+// ====================================================================
+class OnboardingFlowScreen extends StatefulWidget {
+  const OnboardingFlowScreen({super.key});
+
+  @override
+  State<OnboardingFlowScreen> createState() => _OnboardingFlowScreenState();
+}
+
+class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
+  final PageController _controller = PageController();
+  int _currentPage = 0;
+
+  static const Color primaryOrange = Color(0xFFFFA500);
+  static const Color cardBackground = Color(0xFFEAEAEA);
+  static const Color inactiveDotColor = Color(0xFFCACACA);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Widget _buildDot(bool isActive) {
+    const double dotSize = 16.0;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8.0),
+      height: dotSize,
+      width: dotSize,
+      decoration: BoxDecoration(
+        color: isActive ? primaryOrange : inactiveDotColor,
+        borderRadius: BorderRadius.circular(dotSize / 2),
+        border: Border.all(
+          color: const Color(0xFF5F5F5F),
+          width: 1,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDotsRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        _buildDot(_currentPage == 0),
+        _buildDot(_currentPage == 1),
+        _buildDot(_currentPage == 2),
+      ],
+    );
+  }
+
+  Widget _buildPage({
+    required String imageAsset,
+    required String text,
+    required int index,
+    required bool last,
+  }) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final imageSectionHeight = screenHeight * 0.60;
+    final cardSectionHeight = screenHeight * 0.45;
+
+    return Stack(
+      children: [
+        SizedBox(
+          height: imageSectionHeight,
+          width: double.infinity,
+          child: Image.asset(
+            imageAsset,
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+          ),
+        ),
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: Container(
+            height: cardSectionHeight,
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              color: cardBackground,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(50),
+                topRight: Radius.circular(50),
+              ),
+            ),
+            padding: const EdgeInsets.only(
+              top: 40,
+              left: 30,
+              right: 30,
+              bottom: 80,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Text(
+                  'AIN EL BALAD',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black87,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  text,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 18.0,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B6B6B),
+                    height: 1.4,
+                  ),
+                ),
+                const Spacer(),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: 125,
+          left: 0,
+          right: 0,
+          child: _buildDotsRow(),
+        ),
+        Positioned(
+          bottom: 30,
+          right: 30,
+          child: FloatingActionButton(
+            onPressed: () {
+              if (last) {
+                Navigator.pushReplacement(
+                  context,
+                  _instantRoute(const LoginScreen()),
+                );
+              } else {
+                _controller.nextPage(
+                  duration: const Duration(milliseconds: 280),
+                  curve: Curves.easeOut,
+                );
+              }
+            },
+            backgroundColor: const Color(0xFFEAEAEA),
+            elevation: 0,
+            shape: const CircleBorder(
+              side: BorderSide(color: primaryOrange, width: 3),
+            ),
+            child: const Icon(
+              Icons.arrow_forward,
+              color: primaryOrange,
+              size: 28,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: PageView(
+        controller: _controller,
+        onPageChanged: (index) => setState(() => _currentPage = index),
+        children: [
+          _buildPage(
+            imageAsset: 'assets/onboarding1.png',
+            text:
+                'Spot and report any local issue easily from broken roads to faulty lighting and help make your neighborhood better with Ain El Balad.',
+            index: 0,
+            last: false,
+          ),
+          _buildPage(
+            imageAsset: 'assets/onboarding2.png',
+            text:
+                'Snap, locate, and submit issues in seconds — your report reaches the authorities quickly and easily.',
+            index: 1,
+            last: false,
+          ),
+          _buildPage(
+            imageAsset: 'assets/onboarding3.png',
+            text:
+                'Track your report step by step and see real-time updates until the issue is fixed.',
+            index: 2,
+            last: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ====================================================================
+// 3. Onboarding Screen 1
 // ====================================================================
 class OnboardingScreen1 extends StatelessWidget {
   const OnboardingScreen1({super.key});
@@ -306,7 +503,7 @@ class OnboardingScreen1 extends StatelessWidget {
                     'AIN EL BALAD',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 28,
+                      fontSize: 24,
                       fontWeight: FontWeight.w900,
                       color: Colors.black87,
                       height: 1.2,
@@ -339,9 +536,7 @@ class OnboardingScreen1 extends StatelessWidget {
             right: 30,
             child: FloatingActionButton(
               onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const OnboardingScreen2()),
-                );
+                Navigator.of(context).push(_instantRoute(const OnboardingScreen2()));
               },
               backgroundColor: const Color(0xFFEAEAEA),
               elevation: 0,
@@ -439,7 +634,7 @@ class OnboardingScreen2 extends StatelessWidget {
                     'AIN EL BALAD',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontSize: 28,
+                        fontSize: 24,
                         fontWeight: FontWeight.w900,
                         color: Colors.black87,
                         height: 1.2),
@@ -470,9 +665,7 @@ class OnboardingScreen2 extends StatelessWidget {
             right: 30,
             child: FloatingActionButton(
               onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const OnboardingScreen3()),
-                );
+                Navigator.of(context).push(_instantRoute(const OnboardingScreen3()));
               },
               backgroundColor: const Color(0xFFEAEAEA),
               elevation: 0,
@@ -568,7 +761,7 @@ class OnboardingScreen3 extends StatelessWidget {
                     'AIN EL BALAD',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontSize: 28,
+                        fontSize: 24,
                         fontWeight: FontWeight.w900,
                         color: Colors.black87,
                         height: 1.2),
@@ -599,10 +792,7 @@ class OnboardingScreen3 extends StatelessWidget {
             right: 30,
             child: FloatingActionButton(
               onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                );
+                Navigator.pushReplacement(context, _instantRoute(const LoginScreen()));
               },
               backgroundColor: const Color(0xFFEAEAEA),
               elevation: 0,
@@ -628,8 +818,8 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  static const double fsTitle = 44; // Login title
-  static const double fsSubtitle = 18; // Welcome text
+  static const double fsTitle = 24; // Login title
+  static const double fsSubtitle = 14; // Welcome text
   static const double fsLabel = 16; // Field labels (Email/Password)
   static const double fsHint = 16.5; // Field hint text
   static const double fsLink = 16; // Forget Password link
@@ -731,7 +921,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      SizedBox(height: vs(96)),
+                      SizedBox(height: vs(22)),
                       const Center(
                         child: Text(
                           'Login Account',
@@ -742,13 +932,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                      SizedBox(height: vs(4)),
+                      SizedBox(height: vs(8)),
                       const Text(
                         'Welcome Back!',
                         style: TextStyle(
                             fontSize: fsSubtitle, fontWeight: FontWeight.w700),
                       ),
-                      SizedBox(height: vs(46)),
+                      SizedBox(height: vs(62)),
                       const Align(
                         alignment: Alignment.centerLeft,
                         child: Text('Email Address',
@@ -756,12 +946,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                 fontSize: fsLabel,
                                 fontWeight: FontWeight.w600)),
                       ),
-                      SizedBox(height: vs(8)),
+                      SizedBox(height: vs(4)),
                       TextField(
                         controller: _email,
                         decoration: _inputDecoration('Enter email address', fsHint),
                       ),
-                      SizedBox(height: vs(24)),
+                      SizedBox(height: vs(32)),
                       const Align(
                         alignment: Alignment.centerLeft,
                         child: Text('Password',
@@ -769,7 +959,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 fontSize: fsLabel,
                                 fontWeight: FontWeight.w600)),
                       ),
-                      SizedBox(height: vs(8)),
+                      SizedBox(height: vs(4)),
                       TextField(
                         controller: _password,
                         obscureText: _obscure,
@@ -782,7 +972,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                      SizedBox(height: vs(10)),
+                      SizedBox(height: vs(8)),
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
@@ -803,7 +993,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                      SizedBox(height: vs(24)),
+                      SizedBox(height: vs(68)),
                       SizedBox(
                         width: double.infinity,
                         height: 55,
@@ -827,7 +1017,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                         ),
                       ),
-                      SizedBox(height: vs(60)),
+                      SizedBox(height: vs(73)),
                       const Row(
                         children: [
                           Expanded(child: Divider(color: Color(0xFF9A9A9A))),
@@ -876,7 +1066,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ],
                       ),
-                      SizedBox(height: vs(24)),
+                      SizedBox(height: vs(16)),
                     ],
                   ),
                 ),
@@ -1135,13 +1325,13 @@ void dispose() {
                 ),
               ),
               const Padding(
-                padding: EdgeInsets.only(top: 4, bottom: 18),
+                padding: EdgeInsets.only(top: 4, bottom: 20),
                 child: Text(
                   "Create Account",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       fontSize: 24,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                       color: Color(0xff044a8d)),
                 ),
               ),
@@ -1156,7 +1346,7 @@ void dispose() {
                       const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
                 ),
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 8),
               // ===== Last Name =====
               TextField(
                 controller: lastNameController,
@@ -1168,7 +1358,7 @@ void dispose() {
                       const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
                 ),
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 8),
               // ===== Email =====
               TextField(
                 controller: emailController,
@@ -1180,7 +1370,7 @@ void dispose() {
                       const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
                 ),
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 8),
               // ===== Password =====
               TextField(
                 controller: passwordController,
@@ -1207,7 +1397,7 @@ void dispose() {
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Align(
                 alignment: Alignment.centerLeft,
                 child: Wrap(
@@ -1245,7 +1435,7 @@ void dispose() {
                   ],
                 ),
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 8),
               // ===== Confirm Password =====
               TextField(
                 controller: confirmPasswordController,
@@ -1265,7 +1455,7 @@ void dispose() {
                   ),
                 ),
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 8),
               // ===== Checkbox =====
               Row(
                 children: [
@@ -1288,7 +1478,7 @@ void dispose() {
                   ),
                 ],
               ),
-              const SizedBox(height: 25),
+              const SizedBox(height: 8),
               // ===== Sign Up Button =====
               Center(
                 child: SizedBox(
@@ -1311,7 +1501,7 @@ void dispose() {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 22),
               // ===== Or Login with =====
               Row(
                 children: const [
@@ -1322,7 +1512,7 @@ void dispose() {
                   Expanded(child: Divider()),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               // ===== Social Icons =====
               const _SocialIconsRow(),
               const SizedBox(height: 25),
@@ -1448,13 +1638,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 'Forgot Password?',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 28,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: primaryBlue,
+                  color: Color(0xFF004E98),
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 22),
             SizedBox(
               width: double.infinity,
               child: const Text(
@@ -1467,7 +1657,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 8),
             Center(
               child: Image.network(
                 'https://i.ibb.co/Df7cw7HH/IMG.jpg',

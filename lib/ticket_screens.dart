@@ -41,6 +41,7 @@ class ReportSummary {
   final String locationAddress;
   final String currentStatus;
   final String reportDate;
+  final String reportTime;
   final String? photoUrl;
   final String? department;
 
@@ -51,6 +52,7 @@ class ReportSummary {
     required this.locationAddress,
     required this.currentStatus,
     required this.reportDate,
+    required this.reportTime,
     required this.photoUrl,
     this.department,
   });
@@ -64,6 +66,7 @@ class ReportSummary {
         .toString();
     final status = (json['current_status'] ?? json['status'] ?? '').toString();
     final date = (json['report_date'] ?? json['date'] ?? '').toString();
+    final time = (json['report_time'] ?? json['time'] ?? '').toString();
     return ReportSummary(
       reportId: (json['report_id'] ?? 0) as int,
       title: (json['title'] ?? '').toString(),
@@ -71,8 +74,12 @@ class ReportSummary {
       locationAddress: location,
       currentStatus: status,
       reportDate: date,
+      reportTime: time,
       photoUrl: _normalizeImageUrl(json['photo_url'] ?? json['photo']),
-      department: (json['department'] ?? json['category'])?.toString(),
+      department: (() {
+        final value = (json['department'] ?? json['category'])?.toString().trim() ?? '';
+        return value.isEmpty || value.toLowerCase() == 'null' ? null : value;
+      })(),
     );
   }
 }
@@ -157,7 +164,10 @@ class ReportDetails {
       reportDate: (detailsJson['report_date'] ?? '').toString(),
       photoUrl: _normalizeImageUrl(detailsJson['photo_url'] ?? detailsJson['photo']),
       statusUpdates: timeline,
-      department: (detailsJson['department'] ?? detailsJson['category'] ?? detailsJson['ai_category'])?.toString(),
+      department: (() {
+        final value = (detailsJson['department'] ?? detailsJson['category'] ?? detailsJson['ai_category'])?.toString().trim() ?? '';
+        return value.isEmpty || value.toLowerCase() == 'null' ? null : value;
+      })(),
     );
   }
 }
@@ -174,6 +184,46 @@ Future<Map<String, String>> _authHeaders({bool isMultipart = false}) async {
     headers['Authorization'] = 'Bearer $token';
   }
   return headers;
+}
+
+Color _statusColor(String status) {
+  final value = status.toLowerCase();
+  if (value.contains('assigned')) {
+    return const Color(0xFF1214A1);
+  }
+  if (value.contains('canceled') || value.contains('cancelled')) {
+    return const Color(0xFFE61616);
+  }
+  if (value.contains('in progress')) {
+    return const Color(0xFFDDB104);
+  }
+  if (value.contains('pending')) {
+    return const Color(0xFF3B3F3D);
+  }
+  if (value.contains('fixed')) {
+    return const Color(0xFF12A150);
+  }
+  return const Color(0xFF404040);
+}
+
+Color _ticketDetailsStatusColor(String status) {
+  final value = status.toLowerCase();
+  if (value.contains('assigned')) {
+    return const Color(0xFF1214A1);
+  }
+  if (value.contains('canceled') || value.contains('cancelled')) {
+    return const Color(0xFFE61616);
+  }
+  if (value.contains('in progress')) {
+    return const Color(0xFFDDB104);
+  }
+  if (value.contains('pending')) {
+    return const Color(0xFF3B3F3D);
+  }
+  if (value.contains('fixed')) {
+    return const Color(0xFF12A150);
+  }
+  return const Color(0xFF004E98);
 }
 
 String _formatDate(String iso) {
@@ -198,6 +248,44 @@ String _formatTime(String iso) {
   } catch (_) {
     return '';
   }
+}
+
+String _normalizeDisplayTime(String raw) {
+  final value = raw.trim();
+  if (value.isEmpty) return '';
+
+  final match = RegExp(r'^(\d{1,2}):(\d{2})\s*(AM|PM)$', caseSensitive: false)
+      .firstMatch(value);
+  if (match != null) {
+    final hour = int.tryParse(match.group(1) ?? '');
+    final minute = match.group(2) ?? '00';
+    final ampm = (match.group(3) ?? '').toUpperCase();
+    if (hour != null) {
+      var normalizedHour = hour;
+      if (ampm == 'PM' && hour > 12) normalizedHour = hour - 12;
+      if (ampm == 'AM' && hour == 12) normalizedHour = 12;
+      return '$normalizedHour:$minute $ampm';
+    }
+  }
+
+  return value;
+}
+
+String _formatSummaryDateTime(String date, String time) {
+  final normalizedTime = _normalizeDisplayTime(time);
+  if (date.trim().isEmpty && normalizedTime.isEmpty) return '-';
+  if (date.trim().isEmpty) return normalizedTime;
+  if (normalizedTime.isEmpty) {
+    try {
+      return _formatDate(date);
+    } catch (_) {
+      return date;
+    }
+  }
+
+  final parsedDate = DateTime.tryParse(date);
+  final formattedDate = parsedDate != null ? _formatDate(date) : date;
+  return '$formattedDate - $normalizedTime';
 }
 
 String _monthName(int month) {
@@ -233,6 +321,7 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
   static const double fsBody = 14; // Helper text
   final ImagePicker _picker = ImagePicker();
   final TextEditingController _descriptionController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   final SpeechToText _speech = SpeechToText();
   File? _image;
   String _locationAddress = 'Unknown';
@@ -242,8 +331,10 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
   bool _isSubmitting = false;
 
   @override
+  @override
   void dispose() {
     _descriptionController.dispose();
+    _scrollController.dispose();
     _speech.stop();
     super.dispose();
   }
@@ -372,26 +463,43 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
           }
         });
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          child: SizedBox(
-            width: 260,
-            height: 280,
-            child: Padding(
-              padding: const EdgeInsets.all(18),
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: const SizedBox(
+            width: 263,
+            height: 400,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.all(Radius.circular(28)),
+              ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  CircleAvatar(
-                    radius: 42,
-                    backgroundColor: Color(0xFF3CCB37),
-                    child: Icon(Icons.check, color: Colors.white, size: 44),
+                children: [
+                  Spacer(flex: 2),
+                  SizedBox(
+                    width: 180,
+                    height: 180,
+                    child: Image(
+                      image: AssetImage('assets/success_ticket.png'),
+                      fit: BoxFit.contain,
+                    ),
                   ),
-                  SizedBox(height: 20),
-                  Text(
-                    'Your ticket has been\nsubmitted successfully',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  Spacer(flex: 1),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 22),
+                    child: Text(
+                      'Your ticket has been\nsubmitted successfully',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
+                        height: 1.4,
+                      ),
+                    ),
                   ),
+                  Spacer(flex: 3),
                 ],
               ),
             ),
@@ -450,6 +558,7 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
     const Color uploadBlue = Color(0xFF2A6BA9);
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text(
           'Create My Ticket',
@@ -467,7 +576,14 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
         children: [
           Positioned.fill(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0).copyWith(bottom: 110),
+              controller: _scrollController,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                MediaQuery.of(context).viewInsets.bottom + 140,
+              ),
               child: Column(
                 children: [
                   Center(
@@ -524,59 +640,59 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
                   ),
                   const SizedBox(height: 24),
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      GestureDetector(
-                        onTap: _openMap,
-                        child: const Icon(Icons.location_on,
-                            color: brandBlue, size: 24),
-                      ),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        width: 311,
-                        height: 40,
-                        child: TextField(
-                          controller: _descriptionController,
-                          decoration: InputDecoration(
-                            hintText: 'Add description',
-                            hintStyle: const TextStyle(fontSize: 14),
-                            prefixIcon: IconButton(
-                              onPressed: _toggleListening,
-                              icon: Icon(
-                                Icons.mic,
-                                color: _isListening ? brandBlue : accentOrange,
-                                size: 24,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: _openMap,
+                          child: const Icon(Icons.location_on,
+                              color: brandBlue, size: 24),
+                        ),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: 311,
+                          height: 40,
+                          child: TextField(
+                            controller: _descriptionController,
+                            decoration: InputDecoration(
+                              hintText: 'Add description',
+                              hintStyle: const TextStyle(fontSize: 14),
+                              prefixIcon: IconButton(
+                                onPressed: _toggleListening,
+                                icon: Icon(
+                                  Icons.mic,
+                                  color: _isListening ? brandBlue : accentOrange,
+                                  size: 24,
+                                ),
                               ),
+                              prefixIconConstraints: const BoxConstraints(
+                                  minWidth: 32, minHeight: 32),
+                              suffixIcon: IconButton(
+                                icon: Icon(Icons.send,
+                                    color:
+                                        _isSubmitting ? Colors.grey : brandBlue),
+                                onPressed: _isSubmitting ? null : _submitReport,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(0),
+                                borderSide:
+                                    const BorderSide(color: Color(0xFFE0E0E0)),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(0),
+                                borderSide:
+                                    const BorderSide(color: Color(0xFFE0E0E0)),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(0),
+                                borderSide:
+                                    const BorderSide(color: brandBlue, width: 1.5),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 8, horizontal: 8),
                             ),
-                            prefixIconConstraints: const BoxConstraints(
-                                minWidth: 32, minHeight: 32),
-                            suffixIcon: IconButton(
-                              icon: Icon(Icons.send,
-                                  color:
-                                      _isSubmitting ? Colors.grey : brandBlue),
-                              onPressed: _isSubmitting ? null : _submitReport,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(0),
-                              borderSide:
-                                  const BorderSide(color: Color(0xFFE0E0E0)),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(0),
-                              borderSide:
-                                  const BorderSide(color: Color(0xFFE0E0E0)),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(0),
-                              borderSide:
-                                  const BorderSide(color: brandBlue, width: 1.5),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                                vertical: 8, horizontal: 8),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
                   ),
                 ],
               ),
@@ -671,6 +787,9 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
               final t = tickets[index];
               final issueName =
                   (t.department?.isNotEmpty == true) ? t.department! : t.title;
+              final statusText = t.currentStatus.trim().isEmpty
+                  ? '-'
+                  : t.currentStatus.trim();
               String show(String v) => v.trim().isEmpty ? '-' : v;
               final hasPhoto = t.photoUrl != null && t.photoUrl!.isNotEmpty;
               return GestureDetector(
@@ -692,101 +811,194 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                     color: const Color(0xFFCCDCEA),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: hasPhoto
-                      ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: 127,
-                              height: 127,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[400],
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Image.network(
-                                  t.photoUrl!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) =>
-                                      Container(color: Colors.grey[400]),
-                                ),
-                              ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (hasPhoto) ...[
+                        Container(
+                          width: 127,
+                          height: 127,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[400],
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              t.photoUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  Container(color: Colors.grey[400]),
                             ),
-                            const SizedBox(width: 15),
-                            Expanded(
-                              child: SizedBox(
-                                height: 127,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      show(issueName),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(width: 15),
+                        Expanded(
+                          child: SizedBox(
+                            height: 146,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  show(issueName),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                Text(
+                                  'ID #${t.reportId}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  show(statusText),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: _statusColor(statusText),
+                                  ),
+                                ),
+                                Text(
+                                  show(
+                                    '${_formatDate(t.reportDate)} - ${_formatTime(t.reportDate)}',
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: SizedBox(
+                                    width: 79,
+                                    height: 24,
+                                    child: ElevatedButton(
+                                      onPressed: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => TrackTicketScreen(
+                                            reportId: t.reportId,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                    Text(
-                                      'ID #${t.reportId}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 12,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFFFFA500),
+                                        padding: EdgeInsets.zero,
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
                                       ),
-                                    ),
-                                  Text(
-                                    show(
-                                      '${_formatDate(t.reportDate)} - ${_formatTime(t.reportDate)}',
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.black,
+                                      child: const Text(
+                                        'Track',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.black,
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ] else ...[
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                show(issueName),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
                                 ),
                               ),
-                            ),
-                          ],
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              show(issueName),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
+                              Text(
+                                'ID #${t.reportId}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 12,
+                                ),
                               ),
-                            ),
-                            Text(
-                              'ID #${t.reportId}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                                fontSize: 12,
+                              Text(
+                                show(statusText),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: _statusColor(statusText),
+                                ),
                               ),
-                            ),
-                            Text(
-                              show(
-                                '${_formatDate(t.reportDate)} - ${_formatTime(t.reportDate)}',
+                              Text(
+                                show(
+                                  _formatSummaryDateTime(t.reportDate, t.reportTime),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.black,
+                                ),
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Colors.black,
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: SizedBox(
+                                  width: 79,
+                                  height: 24,
+                                  child: ElevatedButton(
+                                    onPressed: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => TrackTicketScreen(
+                                          reportId: t.reportId,
+                                        ),
+                                      ),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFFFA500),
+                                      padding: EdgeInsets.zero,
+                                      elevation: 0,
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(9),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Track',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
+                      ],
+                    ],
+                  ),
                 ),
               );
             },
@@ -817,11 +1029,13 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> {
   final Color brandBlue = const Color(0xFF004E98);
   final Color lightBlueCard = const Color(0xFFCCDCEA);
   late Future<ReportDetails> _detailsFuture;
+  late Future<String?> _issueNameFuture;
 
   @override
   void initState() {
     super.initState();
     _detailsFuture = _fetchDetails();
+    _issueNameFuture = _resolveIssueName();
   }
 
   Future<ReportDetails> _fetchDetails() async {
@@ -836,6 +1050,37 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> {
         ? data['details'] as Map<String, dynamic>
         : data;
     return ReportDetails.fromJson(details);
+  }
+
+  Future<String?> _resolveIssueName() async {
+    if (widget.issueNameOverride?.trim().isNotEmpty == true &&
+        widget.issueNameOverride!.trim().toLowerCase() != 'null') {
+      return widget.issueNameOverride!.trim();
+    }
+
+    final uri = Uri.parse(ApiConfig.myTickets);
+    final res = await http.get(uri, headers: await _authHeaders());
+    if (res.statusCode != 200 && res.statusCode != 201) return null;
+
+    final body = jsonDecode(res.body);
+    if (body is Map<String, dynamic> && body['status'] == false) return null;
+    if (body is! Map<String, dynamic>) return null;
+
+    dynamic data = body['data'];
+    if (data is Map<String, dynamic> && data['data'] is List) {
+      data = data['data'];
+    }
+    final list = data is List ? data : <dynamic>[];
+    for (final item in list) {
+      if (item is! Map<String, dynamic>) continue;
+      final reportId = int.tryParse((item['report_id'] ?? '').toString());
+      if (reportId != widget.reportId) continue;
+      final department = (item['department'] ?? item['category'])?.toString().trim() ?? '';
+      if (department.isNotEmpty && department.toLowerCase() != 'null') {
+        return department;
+      }
+    }
+    return null;
   }
 
   void _goHome() {
@@ -902,33 +1147,38 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> {
                   );
                 }
                 final d = snapshot.data!;
-                final issueName = (widget.issueNameOverride?.isNotEmpty == true)
-                    ? widget.issueNameOverride!
-                    : (d.department?.isNotEmpty == true
-                        ? d.department!
-                        : (d.title.isNotEmpty ? d.title : '-'));
                 final description = d.description.isNotEmpty ? d.description : '-';
                 final location = d.locationAddress.isNotEmpty ? d.locationAddress : '-';
                 final status = d.currentStatus.isNotEmpty ? d.currentStatus : '-';
                 final issueDate = d.reportDate.isNotEmpty
                     ? '${_formatDate(d.reportDate)} - ${_formatTime(d.reportDate)}'
                     : '-';
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Center(
-                    child: Container(
-                      width: 343,
-                      decoration: BoxDecoration(
-                        color: lightBlueCard,
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Center(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
+                return FutureBuilder<String?>(
+                  future: _issueNameFuture,
+                  builder: (context, issueSnapshot) {
+                    final issueName = (issueSnapshot.data?.trim().isNotEmpty == true &&
+                            issueSnapshot.data!.trim().toLowerCase() != 'null')
+                        ? issueSnapshot.data!.trim()
+                        : (d.department?.trim().isNotEmpty == true &&
+                                d.department!.trim().toLowerCase() != 'null')
+                            ? d.department!.trim()
+                            : '-';
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Center(
+                        child: Container(
+                          width: 343,
+                          decoration: BoxDecoration(
+                            color: lightBlueCard,
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Center(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
                               child: Container(
                                 width: 327,
                                 height: 304,
@@ -975,29 +1225,44 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> {
                           _buildDetailRow('Issue Name :', issueName),
                           _buildDetailRow('Description :', description),
                           _buildDetailRow('Location :', location),
-                          _buildDetailRow('Status :', status),
+                          _buildDetailRow(
+                            'Status :',
+                            status,
+                            valueColor: _ticketDetailsStatusColor(status),
+                          ),
                           _buildDetailRow('Issue Date :', issueDate),
                         ],
                       ),
                     ),
                   ),
                 );
+                  },
+                );
               },
             ),
           ),
-          AppBottomNav(
-            currentIndex: 1,
-            onLocationTap: _showMapNotReady,
-            onHomeTap: _goHome,
-            onTrackTap: _goTrack,
-            onCreateTap: _goCreate,
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Center(
+              child: AppBottomNav(
+                currentIndex: 1,
+                onLocationTap: _showMapNotReady,
+                onHomeTap: _goHome,
+                onTrackTap: _goTrack,
+                onCreateTap: _goCreate,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(
+    String label,
+    String value, {
+    Color valueColor = const Color(0xFF404040),
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
@@ -1015,10 +1280,10 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Roboto',
                 fontSize: 16,
-                color: Color(0xFF404040),
+                color: valueColor,
               ),
             ),
           ),
@@ -1100,6 +1365,16 @@ class _TrackTicketScreenState extends State<TrackTicketScreen> {
     return ReportDetails.fromJson(data);
   }
 
+  Future<String?> _resolveIssueName(int reportId) async {
+    final tickets = await (_ticketsFuture ??= _fetchTicketsForTrack());
+    for (final ticket in tickets) {
+      if (ticket.reportId == reportId && ticket.department?.trim().isNotEmpty == true) {
+        return ticket.department!.trim();
+      }
+    }
+    return null;
+  }
+
   void _goHome() {
     Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
   }
@@ -1177,64 +1452,82 @@ class _TrackTicketScreenState extends State<TrackTicketScreen> {
                     Center(
                       child: Padding(
                         padding: const EdgeInsets.only(top: 24),
-                        child: Container(
-                          width: 343,
-                          height: 101,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: lightCardBg,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Container(
-                                  width: 85,
-                                  height: 85,
-                                  color: Colors.white.withOpacity(0.6),
-                                  child: d.photoUrl == null || d.photoUrl!.isEmpty
-                                      ? Icon(Icons.image, color: primaryBlue)
-                                      : Image.network(d.photoUrl!,
-                                          fit: BoxFit.cover),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () async {
+                            final issueName = await _resolveIssueName(d.reportId);
+                            if (!mounted) return;
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => TicketDetailsScreen(
+                                  reportId: d.reportId,
+                                  issueNameOverride: issueName,
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      issueName,
-                                      style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black87),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Row(
-                                      children: [
-                                        const Text("ID ",
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 12)),
-                                        Text("#${d.reportId}",
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 12)),
-                                      ],
-                                    ),
-                                    Text(
-                                      _formatDate(d.reportDate),
-                                      style: TextStyle(
-                                          color: Color(0xFF404040),
-                                          fontSize: 12),
-                                    ),
-                                  ],
+                            );
+                          },
+                          child: Container(
+                            width: 343,
+                            height: 120,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: lightCardBg,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    width: 85,
+                                    height: 85,
+                                    color: Colors.white.withOpacity(0.6),
+                                    child: d.photoUrl == null || d.photoUrl!.isEmpty
+                                        ? Icon(Icons.image, color: primaryBlue)
+                                        : Image.network(d.photoUrl!,
+                                            fit: BoxFit.cover),
+                                  ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        issueName,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black87),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          const Text("ID ",
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12)),
+                                          Text("#${d.reportId}",
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12)),
+                                        ],
+                                      ),
+                                      Text(
+                                        _formatDate(d.reportDate),
+                                        style: TextStyle(
+                                            color: Color(0xFF404040),
+                                            fontSize: 12),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -1299,8 +1592,15 @@ class _TrackTicketScreenState extends State<TrackTicketScreen> {
   }
 
   Widget _buildStep(StatusUpdateItem update, int index, bool isLast) {
-    final day = _formatDate(update.timestamp);
-    final time = _formatTime(update.timestamp);
+    const trackBlue = Color(0xFF004E98);
+    const noteGrey = Color(0xFF7F7F7F);
+    const dateBlue = Color(0xFF003465);
+    final day = update.date.isNotEmpty
+        ? _formatDate(update.date)
+        : _formatDate(update.timestamp);
+    final time = update.time.isNotEmpty
+        ? _normalizeDisplayTime(update.time)
+        : _formatTime(update.timestamp);
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1327,7 +1627,7 @@ class _TrackTicketScreenState extends State<TrackTicketScreen> {
             ],
           ),
           const SizedBox(width: 15),
-          Icon(_statusIcon(update.newStatus), size: 28, color: primaryBlue),
+          Icon(_statusIcon(update.newStatus), size: 28, color: trackBlue),
           const SizedBox(width: 15),
           Expanded(
             child: Column(
@@ -1337,9 +1637,9 @@ class _TrackTicketScreenState extends State<TrackTicketScreen> {
                     style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: primaryBlue)),
+                        color: trackBlue)),
                 Text(update.content,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                    style: const TextStyle(fontSize: 12, color: noteGrey)),
                 const SizedBox(height: 25),
               ],
             ),
@@ -1351,12 +1651,12 @@ class _TrackTicketScreenState extends State<TrackTicketScreen> {
                   style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: Colors.grey)),
+                      color: dateBlue)),
               Text(time,
-                  style: TextStyle(
+                  style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black)),
+                      color: dateBlue)),
             ],
           ),
         ],

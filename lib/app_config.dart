@@ -12,6 +12,7 @@ class ApiConfig {
 
   // Adjust these two if your backend uses different paths.
   static String get profile => '$baseUrl/api/user/profile';
+  static String get updateProfile => '$baseUrl/api/user/update-profile';
   static String get updateProfilePhoto => '$baseUrl/api/user/profile/update-photo';
   static String get notifications => '$baseUrl/api/user/notifications';
   static String get logout => '$baseUrl/api/user/logout';

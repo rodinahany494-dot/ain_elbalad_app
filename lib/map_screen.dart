@@ -511,20 +511,6 @@ class _MapScreenState extends State<MapScreen> {
                             size: 26,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Container(
-                          width: 20,
-                          height: 20,
-                          decoration: BoxDecoration(
-                            color: Colors.black87,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.person,
-                            size: 12,
-                            color: Colors.white,
-                          ),
-                        ),
                       ],
                     ),
                   ),

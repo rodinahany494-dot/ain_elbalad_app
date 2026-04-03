@@ -93,7 +93,7 @@ class AppBottomNav extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _locationItem(),
-          _iconItem(Icons.home, 1, onHomeTap),
+          _iconItem(Icons.home_outlined, 1, onHomeTap),
           _iconItem(Icons.local_shipping_outlined, 2, onTrackTap),
           _iconItem(Icons.note_add_outlined, 3, onCreateTap),
         ],

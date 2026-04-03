@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'app_config.dart';
 import 'app_session.dart';
 import 'package:ain_elbalad/ticket_screens.dart';
@@ -280,7 +282,23 @@ class _ProfileSideMenuState extends State<_ProfileSideMenu> {
               child: const Text('Cancel'),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
+              onPressed: () async {
+                final newName = controller.text.trim();
+                if (newName.isEmpty) return;
+                final updated = await _updateProfileNameOnServer(newName);
+                if (!dialogContext.mounted) return;
+                if (!updated) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Failed to update profile name.')),
+                  );
+                  return;
+                }
+                await AppSession.saveDisplayName(newName);
+                if (mounted) setState(() => _displayName = newName);
+                if (Navigator.of(dialogContext).canPop()) {
+                  Navigator.pop(dialogContext, newName);
+                }
+              },
               child: const Text('Save'),
             ),
           ],
@@ -291,6 +309,27 @@ class _ProfileSideMenuState extends State<_ProfileSideMenu> {
       await AppSession.saveDisplayName(newName);
       if (mounted) setState(() => _displayName = newName);
     }
+  }
+
+  Future<bool> _updateProfileNameOnServer(String newName) async {
+    final token = await AppSession.token();
+    if (token == null || token.isEmpty) return false;
+
+    final res = await http.post(
+      Uri.parse(ApiConfig.updateProfile),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'name': newName,
+        'full_name': newName,
+        'display_name': newName,
+      }),
+    );
+
+    return res.statusCode == 200 || res.statusCode == 201;
   }
 
   String? _extractName(dynamic payload) {
@@ -338,19 +377,38 @@ class _ProfileSideMenuState extends State<_ProfileSideMenu> {
     return _normalizeBackendUrl(rawPhoto);
   }
 
-  String _normalizeBackendUrl(String rawUrl) {
-    final uri = Uri.tryParse(rawUrl);
-    if (uri == null) return rawUrl;
-    if (uri.host == '127.0.0.1' || uri.host == 'localhost') {
+String _normalizeBackendUrl(String rawUrl) {
+  final uri = Uri.tryParse(rawUrl);
+  if (uri == null) return rawUrl;
+  if (uri.host == '127.0.0.1' || uri.host == 'localhost') {
       final base = Uri.parse(ApiConfig.baseUrl);
       return uri.replace(
         scheme: base.scheme,
         host: base.host,
         port: base.hasPort ? base.port : 443,
       ).toString();
-    }
-    return rawUrl;
   }
+  return rawUrl;
+}
+
+Future<bool> _uploadProfilePhotoToServer(File imageFile) async {
+  final token = await AppSession.token();
+  if (token == null || token.isEmpty) return false;
+
+  final request = http.MultipartRequest(
+    'POST',
+    Uri.parse(ApiConfig.updateProfilePhoto),
+  );
+  request.headers.addAll({
+    'Accept': 'application/json',
+    'Authorization': 'Bearer $token',
+  });
+  request.files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
+
+  final streamed = await request.send();
+  final response = await http.Response.fromStream(streamed);
+  return response.statusCode == 200 || response.statusCode == 201;
+}
 
   Future<void> _showLogoutDialog() async {
     final shouldLogout = await showDialog<bool>(
@@ -434,11 +492,32 @@ class _ProfileSideMenuState extends State<_ProfileSideMenu> {
     );
 
     if (!mounted || source == null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Enable Windows Developer Mode to use gallery/camera'),
-      ),
-    );
+
+    final picker = ImagePicker();
+    final imageSource = source == 'camera'
+        ? ImageSource.camera
+        : ImageSource.gallery;
+
+    try {
+      final pickedFile = await picker.pickImage(source: imageSource, imageQuality: 85);
+      if (!mounted || pickedFile == null) return;
+
+      final uploaded = await _uploadProfilePhotoToServer(File(pickedFile.path));
+      if (!mounted) return;
+      if (!uploaded) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update profile photo.')),
+        );
+        return;
+      }
+
+      await _loadProfile();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not pick or upload the photo.')),
+      );
+    }
   }
 
   @override
@@ -654,7 +733,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: const Text('Cancel'),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
+              onPressed: () async {
+                final newName = controller.text.trim();
+                if (newName.isEmpty) return;
+                final updated = await _updateProfileNameOnServer(newName);
+                if (!dialogContext.mounted) return;
+                if (!updated) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Failed to update profile name.')),
+                  );
+                  return;
+                }
+                await AppSession.saveDisplayName(newName);
+                if (mounted) setState(() => _displayName = newName);
+                if (Navigator.of(dialogContext).canPop()) {
+                  Navigator.pop(dialogContext, newName);
+                }
+              },
               child: const Text('Save'),
             ),
           ],
@@ -665,6 +760,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await AppSession.saveDisplayName(newName);
       if (mounted) setState(() => _displayName = newName);
     }
+  }
+
+  Future<bool> _updateProfileNameOnServer(String newName) async {
+    final token = await AppSession.token();
+    if (token == null || token.isEmpty) return false;
+
+    final res = await http.post(
+      Uri.parse(ApiConfig.updateProfile),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'name': newName,
+        'full_name': newName,
+        'display_name': newName,
+      }),
+    );
+
+    return res.statusCode == 200 || res.statusCode == 201;
   }
 
   @override
@@ -843,7 +959,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           .whereType<Map<String, dynamic>>()
           .map(
             (e) => _NotificationItem(
+              reportId: int.tryParse((e['report_id'] ?? '').toString()),
               title: (e['title'] ?? 'Notification').toString(),
+              department: ((e['department'] ?? e['category'])?.toString() ?? '').trim(),
               idText: 'ID #${(e['report_id'] ?? '').toString()}',
               status: (e['current_status'] ?? '').toString(),
               time: _formatReportTime((e['report_date'] ?? '').toString()),
@@ -863,7 +981,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return '${dt.day}/${dt.month}';
   }
 
-  String _normalizeImageUrl(String raw) {
+String _normalizeImageUrl(String raw) {
     if (raw.isEmpty) return '';
     final uri = Uri.tryParse(raw);
     if (uri == null) return raw;
@@ -874,9 +992,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         host: base.host,
         port: base.hasPort ? base.port : 443,
       ).toString();
-    }
-    return raw;
   }
+  return raw;
+}
 
   @override
   Widget build(BuildContext context) {
@@ -885,44 +1003,42 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              IconButton(
-                onPressed: () => Navigator.pop(context),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: const Icon(Icons.arrow_back_ios_new),
-              ),
-              const SizedBox(height: 8),
-              const Center(
-                child: Text(
-                  'Notifications',
-                  style: TextStyle(
-                    color: Color(0xFF0D4B97),
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                  ),
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.arrow_back_ios_new),
                 ),
-              ),
-              const SizedBox(height: 16),
-              if (_loading)
-                const Expanded(
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (_newItems.isEmpty && _lastWeekItems.isEmpty)
-                const Expanded(
-                  child: Center(
-                    child: Text(
-                      'No notifications yet',
-                      style: TextStyle(fontSize: 18, color: Color(0xFF6B6B6B)), // Empty notifications message
+                const SizedBox(height: 8),
+                const Center(
+                  child: Text(
+                    'Notifications',
+                    style: TextStyle(
+                      color: Color(0xFF0D4B97),
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                )
-              else
-                Expanded(
-                  child: ListView(
+                ),
+                const SizedBox(height: 16),
+                if (_loading)
+                  const Center(child: CircularProgressIndicator())
+                else if (_newItems.isEmpty && _lastWeekItems.isEmpty)
+                  const Center(
+                    child: Text(
+                      'No notifications yet',
+                      style: TextStyle(fontSize: 18, color: Color(0xFF6B6B6B)),
+                    ),
+                  )
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (_newItems.isNotEmpty) ...[
                         const Padding(
@@ -942,6 +1058,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               time: n.time,
                               imageUrl: n.imageUrl,
                               highlighted: true,
+                              onTap: n.reportId == null
+                                  ? null
+                                  : () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => TicketDetailsScreen(
+                                            reportId: n.reportId!,
+                                            issueNameOverride: n.department.trim().isNotEmpty &&
+                                                    n.department.toLowerCase() != 'null'
+                                                ? n.department
+                                                : null,
+                                          ),
+                                        ),
+                                      );
+                                    },
                             ),
                           ),
                         ),
@@ -964,14 +1096,28 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               time: n.time,
                               imageUrl: n.imageUrl,
                               highlighted: false,
+                              onTap: n.reportId == null
+                                  ? null
+                                  : () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => TicketDetailsScreen(
+                                            reportId: n.reportId!,
+                                            issueNameOverride:
+                                                n.department.trim().isNotEmpty ? n.department : null,
+                                          ),
+                                        ),
+                                      );
+                                    },
                             ),
                           ),
                         ),
                       ],
                     ],
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -981,14 +1127,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
 class _NotificationItem {
   const _NotificationItem({
+    required this.reportId,
     required this.title,
+    required this.department,
     required this.idText,
     required this.status,
     required this.time,
     required this.imageUrl,
   });
 
+  final int? reportId;
   final String title;
+  final String department;
   final String idText;
   final String status;
   final String time;
@@ -1193,6 +1343,7 @@ class _NotificationCard extends StatelessWidget {
     required this.status,
     required this.time,
     required this.imageUrl,
+    this.onTap,
     this.highlighted = false,
   });
 
@@ -1201,82 +1352,112 @@ class _NotificationCard extends StatelessWidget {
   final String status;
   final String time;
   final String imageUrl;
+  final VoidCallback? onTap;
   final bool highlighted;
+
+  Color _statusColor(String status) {
+    final value = status.toLowerCase();
+    if (value.contains('assigned')) {
+      return const Color(0xFF1214A1);
+    }
+    if (value.contains('canceled') || value.contains('cancelled')) {
+      return const Color(0xFFE61616);
+    }
+    if (value.contains('in progress')) {
+      return const Color(0xFFDDB104);
+    }
+    if (value.contains('pending')) {
+      return const Color(0xFF3B3F3D);
+    }
+    if (value.contains('fixed')) {
+      return const Color(0xFF12A150);
+    }
+    return const Color(0xFF004E98);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: highlighted ? const Color(0xFFC8D8E8) : Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: highlighted
-            ? null
-            : Border.all(color: const Color(0xFFE6E6E6)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: imageUrl.isEmpty
-                ? Container(
-                    width: 60,
-                    height: 60,
-                    color: const Color(0xFFE0E0E0),
-                    child: const Icon(Icons.image_not_supported_outlined),
-                  )
-                : Image.network(
-                    imageUrl,
-                    width: 60,
-                    height: 60,
-                    fit: BoxFit.cover,
-                  ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        height: 92,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: highlighted ? const Color(0xFFC8D8E8) : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: highlighted
+              ? null
+              : const Border(
+                  bottom: BorderSide(color: Color(0xFFE6E6E6)),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  idText,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  status,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: imageUrl.isEmpty
+                  ? Container(
+                      width: 82,
+                      height: 82,
+                      color: const Color(0xFFE0E0E0),
+                      child: const Icon(Icons.image_not_supported_outlined),
+                    )
+                  : Image.network(
+                      imageUrl,
+                      width: 82,
+                      height: 82,
+                      fit: BoxFit.cover,
+                    ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: 42),
-            child: Text(
-              time,
-              style: const TextStyle(
-                color: Colors.black45,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    idText,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    status,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: _statusColor(status),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.only(top: 42),
+              child: Text(
+                time,
+                style: const TextStyle(
+                  color: Colors.black45,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
