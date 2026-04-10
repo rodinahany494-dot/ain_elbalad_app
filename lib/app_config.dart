@@ -1,6 +1,7 @@
 class ApiConfig {
   static const String baseUrl = 'https://deanne-thoughtless-extendedly.ngrok-free.dev';
   static const String googleMapsApiKey = 'AIzaSyCr5LrrlJOwLW2X0CazUeRzeFXjZXzL5Ag';
+  static const String googleWebClientId = '1035120408996-a91ob41i07kic8gp2m3ug2gvakrspmh1.apps.googleusercontent.com';
 
   static String get login => '$baseUrl/api/user/login';
   static String get socialLogin => '$baseUrl/api/user/social-login';

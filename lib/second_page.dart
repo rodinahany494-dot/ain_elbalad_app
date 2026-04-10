@@ -9,6 +9,53 @@ import 'package:ain_elbalad/ticket_screens.dart';
 import 'widgets/app_bottom_nav.dart';
 const String homeBackgroundImagePath = 'assets/home_background.png';
 
+Future<void> _confirmAndLogout(BuildContext context) async {
+  final shouldLogout = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        contentPadding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+        content: const Text(
+          'Log out of your account?',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('CANCEL', style: TextStyle(color: Colors.black87)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('LOG OUT', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (shouldLogout == true) {
+    try {
+      final token = await AppSession.token();
+      if (token != null && token.isNotEmpty) {
+        await http.post(
+          Uri.parse(ApiConfig.logout),
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
+      }
+    } catch (_) {
+      // Ignore API logout failure and continue local logout.
+    }
+
+    await AppSession.clear();
+    if (!context.mounted) return;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+}
+
 // ====================================================================
 // 1. Home Screen
 // ====================================================================
@@ -636,7 +683,7 @@ Future<bool> _uploadProfilePhotoToServer(File imageFile) async {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  onTap: _showLogoutDialog,
+                  onTap: () => _confirmAndLogout(context),
                 ),
               ],
             ),
@@ -882,7 +929,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                onTap: () {},
+                onTap: () => _confirmAndLogout(context),
               ),
             ],
           ),

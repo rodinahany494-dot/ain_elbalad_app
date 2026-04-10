@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:http/http.dart' as http;
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'app_config.dart';
 import 'app_session.dart';
 import 'second_page.dart';
@@ -17,6 +19,181 @@ Route _instantRoute(Widget page) {
     pageBuilder: (_, animation, __) => page,
     transitionsBuilder: (_, __, ___, child) => child,
   );
+}
+
+String? _extractTokenFromBody(dynamic body) {
+  if (body is! Map<String, dynamic>) return null;
+  final direct = body['token']?.toString();
+  if (direct != null && direct.isNotEmpty) return direct;
+  final data = body['data'];
+  if (data is Map<String, dynamic>) {
+    final t = data['token']?.toString() ?? data['access_token']?.toString();
+    if (t != null && t.isNotEmpty) return t;
+  }
+  return body['access_token']?.toString();
+}
+
+class _SocialAuthPayload {
+  final String provider;
+  final String? email;
+  final String socialId;
+  final String? firstName;
+  final String? lastName;
+
+  const _SocialAuthPayload({
+    required this.provider,
+    required this.socialId,
+    this.email,
+    this.firstName,
+    this.lastName,
+  });
+}
+
+Future<void>? _googleSignInInit;
+
+Future<void> _ensureGoogleSignInInitialized() {
+  if (ApiConfig.googleWebClientId.isEmpty) {
+    throw Exception('Google Web Client ID is missing.');
+  }
+  _googleSignInInit ??= GoogleSignIn.instance.initialize(
+    serverClientId: ApiConfig.googleWebClientId,
+  );
+  return _googleSignInInit!;
+}
+
+({String? firstName, String? lastName}) _splitName(String? name) {
+  final trimmed = name?.trim() ?? '';
+  if (trimmed.isEmpty) {
+    return (firstName: null, lastName: null);
+  }
+  final parts = trimmed.split(RegExp(r'\s+'));
+  if (parts.length == 1) {
+    return (firstName: parts.first, lastName: null);
+  }
+  return (
+    firstName: parts.first,
+    lastName: parts.sublist(1).join(' '),
+  );
+}
+
+Future<_SocialAuthPayload?> _signInWithGoogle() async {
+  await _ensureGoogleSignInInitialized();
+  final account = await GoogleSignIn.instance.authenticate(
+    scopeHint: const ['email', 'profile'],
+  );
+
+  if (account.id.isEmpty) {
+    throw Exception('Google sign-in did not return a social id.');
+  }
+
+  final nameParts = _splitName(account.displayName);
+
+  return _SocialAuthPayload(
+    provider: 'google',
+    socialId: account.id,
+    email: account.email,
+    firstName: nameParts.firstName,
+    lastName: nameParts.lastName,
+  );
+}
+
+Future<_SocialAuthPayload?> _signInWithFacebook() async {
+  final result = await FacebookAuth.instance.login(
+    permissions: const ['email', 'public_profile'],
+  );
+
+  if (result.status == LoginStatus.cancelled) return null;
+  if (result.status != LoginStatus.success || result.accessToken == null) {
+    throw Exception(result.message ?? 'Facebook sign-in failed.');
+  }
+
+  final userData = await FacebookAuth.instance.getUserData(
+    fields: 'id,name,first_name,last_name,email',
+  );
+  final socialId = userData['id']?.toString() ?? '';
+  if (socialId.isEmpty) {
+    throw Exception('Facebook sign-in did not return a social id.');
+  }
+
+  final rawFirstName = userData['first_name']?.toString();
+  final rawLastName = userData['last_name']?.toString();
+  final parsedName = _splitName(userData['name']?.toString());
+
+  return _SocialAuthPayload(
+    provider: 'facebook',
+    socialId: socialId,
+    email: userData['email']?.toString(),
+    firstName: rawFirstName ?? parsedName.firstName,
+    lastName: rawLastName ?? parsedName.lastName,
+  );
+}
+
+Future<void> _finishSocialLogin(
+  BuildContext context,
+  _SocialAuthPayload payload,
+) async {
+  final response = await http.post(
+    Uri.parse(ApiConfig.socialLogin),
+    headers: const {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: jsonEncode({
+      'email': payload.email,
+      'social_id': payload.socialId,
+      'social_type': payload.provider,
+      'first_name': payload.firstName,
+      'last_name': payload.lastName,
+    }),
+  );
+
+  if (response.statusCode != 200 && response.statusCode != 201) {
+    throw Exception('Social login failed: ${response.statusCode}');
+  }
+
+  final body = jsonDecode(response.body);
+  final token = _extractTokenFromBody(body);
+  if (token == null || token.isEmpty) {
+    throw Exception('Social login succeeded but no auth token was returned.');
+  }
+
+  final email = payload.email ??
+      (body is Map<String, dynamic> ? body['email']?.toString() : null);
+  final displayName = [
+    payload.firstName?.trim(),
+    payload.lastName?.trim(),
+  ].where((part) => part != null && part.isNotEmpty).join(' ').trim();
+  final responseName = displayName.isNotEmpty
+      ? displayName
+      : (body is Map<String, dynamic> ? body['name']?.toString() : null);
+  await AppSession.saveAuth(
+    token: token,
+    email: email,
+    displayName: responseName,
+  );
+
+  if (!context.mounted) return;
+  Navigator.pushAndRemoveUntil(
+    context,
+    MaterialPageRoute(builder: (_) => const HomeScreen()),
+    (route) => false,
+  );
+}
+
+Future<void> _runSocialLogin(
+  BuildContext context, {
+  required Future<_SocialAuthPayload?> Function() signIn,
+}) async {
+  try {
+    final payload = await signIn();
+    if (payload == null) return;
+    await _finishSocialLogin(context, payload);
+  } catch (e) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+    );
+  }
 }
 
 void main() {
@@ -1036,7 +1213,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         ],
                       ),
                       SizedBox(height: vs(28)),
-                      const _SocialIconsRow(),
+                      _SocialIconsRow(
+                        onFacebookTap: () => _runSocialLogin(
+                          context,
+                          signIn: _signInWithFacebook,
+                        ),
+                        onGoogleTap: () => _runSocialLogin(
+                          context,
+                          signIn: _signInWithGoogle,
+                        ),
+                      ),
                       SizedBox(height: vs(20)),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -1080,52 +1266,54 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
 class _SocialIconsRow extends StatelessWidget {
-  const _SocialIconsRow();
+  final VoidCallback? onFacebookTap;
+  final VoidCallback? onGoogleTap;
+
+  const _SocialIconsRow({
+    this.onFacebookTap,
+    this.onGoogleTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    const double iconBox = 64;
-    const double fbIconSize = 40;
-    const double googleIconSize = 56;
+    const double iconBox = 59;
+    const double fbIconSize = 59;
+    const double googleIconSize = 59;
     const double gap = 28;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Container(
-          width: iconBox,
-          height: iconBox,
-          decoration: const BoxDecoration(
-            color: Color(0xFF1877F2),
-            shape: BoxShape.circle,
-          ),
-          alignment: Alignment.center,
-          child: const FaIcon(
-            FontAwesomeIcons.facebookF,
-            color: Colors.white,
-            size: fbIconSize,
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onFacebookTap,
+          child: SizedBox(
+            width: iconBox,
+            height: iconBox,
+            child: Center(
+              child: SvgPicture.asset(
+                'assets/icons/facebook_logo.svg',
+                width: fbIconSize,
+                height: fbIconSize,
+                fit: BoxFit.contain,
+              ),
+            ),
           ),
         ),
         const SizedBox(width: gap),
-        SizedBox(
-          width: iconBox,
-          height: iconBox,
-          child: ShaderMask(
-            shaderCallback: (Rect bounds) {
-              return const SweepGradient(
-                colors: [
-                  Color(0xFFEA4335),
-                  Color(0xFFFBBC05),
-                  Color(0xFF34A853),
-                  Color(0xFF4285F4),
-                  Color(0xFFEA4335),
-                ],
-              ).createShader(bounds);
-            },
-            child: const FaIcon(
-              FontAwesomeIcons.google,
-              color: Colors.white,
-              size: googleIconSize,
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onGoogleTap,
+          child: SizedBox(
+            width: iconBox,
+            height: iconBox,
+            child: Center(
+              child: SvgPicture.asset(
+                'assets/icons/google_logo.svg',
+                width: googleIconSize,
+                height: googleIconSize,
+                fit: BoxFit.contain,
+              ),
             ),
           ),
         ),
@@ -1514,7 +1702,16 @@ void dispose() {
               ),
               const SizedBox(height: 16),
               // ===== Social Icons =====
-              const _SocialIconsRow(),
+              _SocialIconsRow(
+                onFacebookTap: () => _runSocialLogin(
+                  context,
+                  signIn: _signInWithFacebook,
+                ),
+                onGoogleTap: () => _runSocialLogin(
+                  context,
+                  signIn: _signInWithGoogle,
+                ),
+              ),
               const SizedBox(height: 25),
               // ===== Already Have Account =====
               Row(
@@ -3132,7 +3329,16 @@ class _StyledSignUpScreenState extends State<StyledSignUpScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              const _SocialIconsRow(),
+              _SocialIconsRow(
+                onFacebookTap: () => _runSocialLogin(
+                  context,
+                  signIn: _signInWithFacebook,
+                ),
+                onGoogleTap: () => _runSocialLogin(
+                  context,
+                  signIn: _signInWithGoogle,
+                ),
+              ),
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
