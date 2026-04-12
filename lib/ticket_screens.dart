@@ -1439,6 +1439,59 @@ class _TrackTicketScreenState extends State<TrackTicketScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
+                  final errorText = snapshot.error.toString();
+                  if (errorText.contains('No tickets yet')) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.receipt_long_outlined,
+                              size: 84,
+                              color: primaryBlue.withOpacity(0.75),
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'No tickets yet to track',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Create a ticket first, then come back here to follow its status.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: Color(0xFF5E5E5E),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            ElevatedButton(
+                              onPressed: _goCreate,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primaryBlue,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text('Create Ticket'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
                   return Center(
                     child: Text('Failed to load tracking: ${snapshot.error}'),
                   );

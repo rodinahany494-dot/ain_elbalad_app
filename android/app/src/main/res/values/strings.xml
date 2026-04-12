@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Replace these placeholders with the real Facebook App ID and Client Token from Meta Developers -->
-    <string name="facebook_app_id">YOUR_FACEBOOK_APP_ID</string>
-    <string name="facebook_client_token">YOUR_FACEBOOK_CLIENT_TOKEN</string>
-    <string name="fb_login_protocol_scheme">fbYOUR_FACEBOOK_APP_ID</string>
+    <string name="facebook_app_id">808930645168566</string>
+     <string name="facebook_client_token">e901031c840d24af5a8b911c0a860bf8</string>
+    <string name="fb_login_protocol_scheme">fb808930645168566</string>
 </resources>
