@@ -3,6 +3,9 @@ class ApiConfig {
   static const String googleMapsApiKey = 'AIzaSyCr5LrrlJOwLW2X0CazUeRzeFXjZXzL5Ag';
   static const String googleWebClientId = '1035120408996-a91ob41i07kic8gp2m3ug2gvakrspmh1.apps.googleusercontent.com';
 
+  // =====================
+  // User APIs
+  // =====================
   static String get login => '$baseUrl/api/user/login';
   static String get socialLogin => '$baseUrl/api/user/social-login';
   static String get register => '$baseUrl/api/user/register';
@@ -22,4 +25,11 @@ class ApiConfig {
   static String get createReport => '$baseUrl/api/reports/create';
   static String get myTickets => '$baseUrl/api/reports/my-tickets';
   static String trackReport(int id) => '$baseUrl/api/reports/track/$id';
+
+  // =====================
+  // Technician APIs
+  // =====================
+  static String get technicianLogin => '$baseUrl/api/technician/login';
+  static String get myTasks => '$baseUrl/api/technician/my-tasks';
 }
+

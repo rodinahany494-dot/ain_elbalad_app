@@ -11,6 +11,7 @@ import 'app_session.dart';
 import 'second_page.dart';
 import 'map_screen.dart';
 import 'ticket_screens.dart';
+import 'technician/technician_screens.dart';
 
 Route _instantRoute(Widget page) {
   return PageRouteBuilder(
@@ -364,7 +365,12 @@ class Splash2Screen extends StatelessWidget {
                       width: 343,
                       height: 50,
                       child: ElevatedButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const TechnicianLoginScreen()),
+                          );
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFFA500),
                           shape: RoundedRectangleBorder(
@@ -2214,7 +2220,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     if (password != confirmPassword) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Passwords do not match")),
+        const SnackBar(
+          content: Text("Passwords do not match"),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
