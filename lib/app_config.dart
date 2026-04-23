@@ -30,6 +30,17 @@ class ApiConfig {
   // Technician APIs
   // =====================
   static String get technicianLogin => '$baseUrl/api/technician/login';
+  static String get technicianNotifications => '$baseUrl/api/technician/notifications';
   static String get myTasks => '$baseUrl/api/technician/my-tasks';
+  static String get completedTasks => '$baseUrl/api/technician/completed-tasks';
+  static String get inProgressTasks => '$baseUrl/api/technician/in-progress-tasks';
+  static String technicianTaskDetails(int id) =>
+      '$baseUrl/api/technician/task-details/$id';
+  static String technicianStartTask(int id) =>
+      '$baseUrl/api/technician/start-task/$id';
+  static String technicianCompletedTaskDetails(int id) =>
+      '$baseUrl/api/technician/completed-task-details/$id';
+  static String technicianSubmitUpdate(int id) =>
+      '$baseUrl/api/technician/submit-update/$id';
 }
 
