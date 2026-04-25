@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:ain_elbalad/app_config.dart';
 import 'package:ain_elbalad/app_session.dart';
+import 'package:ain_elbalad/technician/technician_profile_screen.dart';
 import 'package:ain_elbalad/widgets/tech_nav_bar.dart';
 
 // ================= 1. TECHNICIAN LOGIN SCREEN =================
@@ -66,7 +67,7 @@ class _TechnicianLoginScreenState extends State<TechnicianLoginScreen> {
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("خطأ سيرفر: ${response.statusCode}")),
+          SnackBar(content: Text("خطأ سيرفر: ")),
         );
       }
     } catch (e) {
@@ -244,14 +245,23 @@ class TechnicianHomeScreen extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _topIcon('assets/profile_new.png', Icons.person),
+                      _topIcon(
+                        'assets/profile_new.png',
+                        Icons.person,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ProfileSideMenu(),
+                          ),
+                        ),
+                      ),
                       _topIcon(
                         'assets/notification_new.png',
                         Icons.notifications,
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const NotificationsScreen(),
+                            builder: (_) => const NOTIFICATION_TECHScreen(),
                           ),
                         ),
                       ),
@@ -475,22 +485,32 @@ class TechnicianHomeScreen extends StatelessWidget {
 }
 
 
-// ================= 3. NOTIFICATIONS SCREEN  =================
-class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({super.key});
+// ================= 3. NOTIFICATION_TECH SCREEN  =================
+class NOTIFICATION_TECHScreen extends StatefulWidget {
+  const NOTIFICATION_TECHScreen({super.key});
 
   @override
-  State<NotificationsScreen> createState() => _NotificationsScreenState();
+  State<NOTIFICATION_TECHScreen> createState() => _NOTIFICATION_TECHScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> {
+class _NOTIFICATION_TECHScreenState extends State<NOTIFICATION_TECHScreen> {
   List<_NotificationItem> notifications = [];
   bool isLoading = true;
+  final ScrollController _scrollController = ScrollController();
+  bool _showBackButton = true;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_handleScroll);
     _loadNotifications();
+  }
+
+  void _handleScroll() {
+    final shouldShowBackButton = _scrollController.offset < 24;
+    if (shouldShowBackButton != _showBackButton && mounted) {
+      setState(() => _showBackButton = shouldShowBackButton);
+    }
   }
 
   Future<void> _loadNotifications() async {
@@ -550,6 +570,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_handleScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final newItems =
         notifications.where((n) => n.group == 'New').toList();
@@ -558,78 +586,134 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Column(
-        children: [
-          SizedBox(
-            height: 76 + MediaQuery.of(context).padding.top,
-          ),
-          const Text(
-            'Notifications',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF004E98),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        leadingWidth: 56,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: IgnorePointer(
+            ignoring: !_showBackButton,
+            child: AnimatedOpacity(
+              opacity: _showBackButton ? 1 : 0,
+              duration: const Duration(milliseconds: 180),
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                icon: Image.asset(
+                  'assets/icons/arrow_back.png',
+                  width: 24,
+                  height: 24,
+                ),
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const TechnicianHomeScreen(),
+                    ),
+                    (route) => false,
+                  );
+                },
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : notifications.isEmpty
-                    ? const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.notifications_none,
-                              size: 70,
-                              color: Color(0xFFCCDCEA),
-                            ),
-                            SizedBox(height: 12),
-                            Text(
-                              'No Notifications Yet',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF404040),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        children: [
-                          if (newItems.isNotEmpty) ...[
-                            const Text(
-                              'New',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            ...newItems.map(
-                              (n) => NotificationCard(notification: n),
-                            ),
-                            const SizedBox(height: 20),
-                          ],
-                          if (lastWeekItems.isNotEmpty) ...[
-                            const Text(
-                              'Last week',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            ...lastWeekItems.map(
-                              (n) => NotificationCard(notification: n),
-                            ),
-                          ],
-                        ],
-                      ),
+        ),
+        title: const Text(
+          'Notifications',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF004E98),
           ),
+        ),
+      ),
+      body: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          if (isLoading)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (notifications.isEmpty)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.notifications_none,
+                      size: 70,
+                      color: Color(0xFFCCDCEA),
+                    ),
+                    SizedBox(height: 12),
+                    Text(
+                      'No Notifications Yet',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF404040),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else ...[
+            if (newItems.isNotEmpty) ...[
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'New',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 12)),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) =>
+                        NotificationCard(notification: newItems[index]),
+                    childCount: newItems.length,
+                  ),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 20)),
+            ],
+            if (lastWeekItems.isNotEmpty) ...[
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'Last week',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 12)),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) =>
+                        NotificationCard(notification: lastWeekItems[index]),
+                    childCount: lastWeekItems.length,
+                  ),
+                ),
+              ),
+            ],
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          ],
         ],
       ),
     );
@@ -2389,3 +2473,4 @@ class _UpdateTaskScreenState extends State<UpdateTaskScreen> {
     );
   }
 }
+

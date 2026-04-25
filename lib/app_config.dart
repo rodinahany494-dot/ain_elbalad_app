@@ -30,6 +30,10 @@ class ApiConfig {
   // Technician APIs
   // =====================
   static String get technicianLogin => '$baseUrl/api/technician/login';
+  static String get technicianProfile => '$baseUrl/api/technician/profile';
+  static String get technicianUpdateProfilePhoto =>
+      '$baseUrl/api/technician/profile/update-photo';
+  static String get technicianLogout => '$baseUrl/api/technician/logout';
   static String get technicianNotifications => '$baseUrl/api/technician/notifications';
   static String get myTasks => '$baseUrl/api/technician/my-tasks';
   static String get completedTasks => '$baseUrl/api/technician/completed-tasks';

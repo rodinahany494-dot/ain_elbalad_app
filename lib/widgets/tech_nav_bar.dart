@@ -31,7 +31,7 @@ class TechNavBar extends StatelessWidget {
             GestureDetector(
               onTap: () {
                 if (currentIndex == 2) return;
-                Navigator.pushReplacementNamed(context, '/home');
+                Navigator.pushReplacementNamed(context, '/tech_home');
               },
               child: Container(
                 padding: const EdgeInsets.all(8),

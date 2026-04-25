@@ -221,6 +221,7 @@ class MyApp extends StatelessWidget {
       home: SplashScreen(),
       routes: {
         '/home': (_) => const HomeScreen(),
+        '/tech_home': (_) => const TechnicianHomeScreen(),
         '/create': (_) => const CreateTicketScreen(),
         '/track': (_) => const TrackTicketScreen(),
         '/map': (_) => const MapScreen(),
@@ -1015,11 +1016,60 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
   bool _obscure = true;
 
+  Future<void> _showErrorDialog(String message) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+          contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          title: Row(
+            children: const [
+              Icon(Icons.error_outline, color: Color(0xFFD32F2F), size: 30),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Alert',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            message,
+            style: const TextStyle(
+              fontSize: 16,
+              height: 1.4,
+              color: Color(0xFF222222),
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFD32F2F),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _login() async {
     if (_email.text.trim().isEmpty || _password.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all fields')),
-      );
+      await _showErrorDialog('Please fill all fields');
       return;
     }
 
@@ -1050,15 +1100,23 @@ class _LoginScreenState extends State<LoginScreen> {
           MaterialPageRoute(builder: (_) => const HomeScreen()),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Login failed')),
-        );
+        String message = 'Login failed';
+        try {
+          final body = jsonDecode(res.body);
+          if (body is Map<String, dynamic>) {
+            final serverMessage = body['message']?.toString().trim();
+            if (serverMessage != null && serverMessage.isNotEmpty) {
+              message = serverMessage;
+            }
+          }
+        } catch (_) {
+          // Keep the fallback message when the response body is not JSON.
+        }
+        await _showErrorDialog(message);
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Server unreachable')),
-      );
+      await _showErrorDialog('Server unreachable');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -1087,23 +1145,28 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF3F3F3),
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
+        child: Builder(
+          builder: (context) {
             final screenHeight = MediaQuery.of(context).size.height;
+            final bottomInset = MediaQuery.of(context).viewInsets.bottom;
             double vs(double px) {
               final val = px * (screenHeight / 812);
               return val.clamp(px * 0.7, px * 1.3);
             }
 
             return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: IntrinsicHeight(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.fromLTRB(
+                28,
+                0,
+                28,
+                bottomInset + MediaQuery.of(context).padding.bottom + 16,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
                       SizedBox(height: vs(22)),
                       const Center(
                         child: Text(
@@ -1233,11 +1296,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text(
-                            "Don\u2019t have an account? ",
-                            style: TextStyle(
+                          Flexible(
+                            child: Text(
+                              "Don\u2019t have an account? ",
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
                                 fontSize: fsBottom,
-                                fontWeight: FontWeight.w600),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                           GestureDetector(
                             onTap: () {
@@ -1251,7 +1318,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               'Sign Up',
                               style: TextStyle(
                                 color: Color(0xFF044A8D),
-                                fontSize: fsBottom, // Sign Up link
+                                fontSize: fsBottom,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -1259,9 +1326,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ],
                       ),
                       SizedBox(height: vs(16)),
-                    ],
-                  ),
-                ),
+                ],
               ),
             );
           },
@@ -3384,4 +3449,5 @@ class _StyledSignUpScreenState extends State<StyledSignUpScreen> {
     );
   }
 }
+
 
