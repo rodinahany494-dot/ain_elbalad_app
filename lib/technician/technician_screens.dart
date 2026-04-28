@@ -220,8 +220,12 @@ class TechnicianHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      // 1. إضافة المنيو هنا عشان تفتح كـ Side Menu فوق الصفحة
+      drawer: const ProfileSideMenu(), 
+      extendBody: true,
+      backgroundColor: const Color(0xFF004E98),
       body: Stack(
+        fit: StackFit.expand,
         children: [
           Positioned.fill(
             child: Image.asset(
@@ -245,14 +249,12 @@ class TechnicianHomeScreen extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _topIcon(
-                        'assets/profile_new.png',
-                        Icons.person,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ProfileSideMenu(),
-                          ),
+                      // 2. تعديل زرار البروفايل ليفتح الـ Drawer
+                      Builder(
+                        builder: (context) => _topIcon(
+                          'assets/profile_new.png',
+                          Icons.person,
+                          onTap: () => Scaffold.of(context).openDrawer(),
                         ),
                       ),
                       _topIcon(
@@ -269,8 +271,11 @@ class TechnicianHomeScreen extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  child: ListView(
+                  child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 64, 16, 96),
+                    child: Column(
                     children: [
                       _taskCard(
                         context,
@@ -331,58 +336,20 @@ class TechnicianHomeScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+              ),
+            ),
               ],
             ),
           ),
-          Positioned(
-            bottom: 16,
-            left: 16,
-            right: 16,
-            child: Container(
-              height: 48,
-              decoration: BoxDecoration(
-                color: const Color(0xFF2A6BA9),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _navItem('assets/icons/completed_tasks.svg', Icons.check_circle_outline),
-                  _navItem('assets/icons/in_progress.svg', Icons.trending_up),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFFA500),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Image.asset(
-                      'assets/home_new.png',
-                      width: 24,
-                      height: 24,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const TasksScreen()),
-                    ),
-                    child: _navItem('assets/icons/my_tasks.svg', Icons.list_alt),
-                  ),
-                  _navItem('assets/icons/update_tasks.svg', Icons.update),
-                ],
-              ),
-            ),
-          ),
+        
         ],
       ),
+      bottomNavigationBar: const TechNavBar(currentIndex: 2),
     );
   }
 
-  static Widget _topIcon(
-    String path,
-    IconData fallback, {
-    VoidCallback? onTap,
-  }) =>
+// ================= Helpers =================
+  static Widget _topIcon(String path, IconData fallback, {VoidCallback? onTap}) =>
       GestureDetector(
         onTap: onTap,
         child: Container(
@@ -407,14 +374,9 @@ class TechnicianHomeScreen extends StatelessWidget {
         ),
       );
 
-  static Widget _taskCard(
-    BuildContext context,
-    String title,
-    String subtitle,
-    String path,
-    IconData fallback, {
-    VoidCallback? onTap,
-  }) {
+  static Widget _taskCard(BuildContext context, String title, String subtitle,
+      String path, IconData fallback,
+      {VoidCallback? onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Center(
@@ -885,6 +847,7 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final tasks = data['data'];
+
         setState(() {
           completedTasks = tasks is List
               ? List<Map<String, dynamic>>.from(tasks)
@@ -904,6 +867,7 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+
       appBar: AppBar(
         leading: IconButton(
           icon: Image.asset(
@@ -933,67 +897,22 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
       ),
-      body: Stack(
-        children: [
-          isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : ListView.builder(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                itemCount: completedTasks.length,
-                itemBuilder: (context, index) =>
-                      _CompletedTaskCard(task: completedTasks[index]),
-                ),
-          Positioned(
-            bottom: 24,
-            left: 20,
-            right: 20,
-            child: Container(
-              height: 70,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(
-                color: const Color(0xFF004A99),
-                borderRadius: BorderRadius.circular(35),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha((255 * 0.15).round()),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  )
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildNavItem(Icons.description, isSelected: true),
-                  _buildNavItem(Icons.cached),
-                  _buildNavItem(Icons.home_outlined),
-                  _buildNavItem(Icons.assignment_outlined),
-                  _buildNavItem(Icons.history),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildNavItem(IconData icon, {bool isSelected = false}) {
-    return isSelected
-        ? Container(
-            padding: const EdgeInsets.all(10),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF9A825),
-              shape: BoxShape.circle,
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.builder(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 10,
+              ),
+              itemCount: completedTasks.length,
+              itemBuilder: (context, index) =>
+                  _CompletedTaskCard(task: completedTasks[index]),
             ),
-            child: Icon(icon, color: Colors.white, size: 24),
-          )
-        : Icon(
-            icon,
-            color: Colors.white.withAlpha((255 * 0.7).round()),
-            size: 26,
-          );
+
+      // ✅ NAVBAR الصح
+      bottomNavigationBar: const TechNavBar(currentIndex: 0),
+    );
   }
 }
 
@@ -1238,37 +1157,7 @@ class _CompletedTaskDetailsScreenState extends State<CompletedTaskDetailsScreen>
                 ],
               ),
             ),
-      bottomNavigationBar: Container(
-        margin: const EdgeInsets.all(16),
-        height: 60,
-        decoration: BoxDecoration(
-          color: primaryBlue,
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            IconButton(
-                icon: const Icon(Icons.assignment_turned_in_outlined,
-                    color: Colors.white),
-                onPressed: () {}),
-            IconButton(
-                icon: const Icon(Icons.history, color: Colors.white),
-                onPressed: () {}),
-            IconButton(
-                icon: const Icon(Icons.home_outlined, color: Colors.white),
-                onPressed: () {}),
-            IconButton(
-                icon:
-                    const Icon(Icons.description_outlined, color: Colors.white),
-                onPressed: () {}),
-            IconButton(
-                icon: const Icon(Icons.assignment_ind_outlined,
-                    color: Colors.white),
-                onPressed: () {}),
-          ],
-        ),
-      ),
+      bottomNavigationBar: const TechNavBar(currentIndex: 5),
     );
   }
 
@@ -1432,11 +1321,11 @@ class _TasksScreenState extends State<TasksScreen> {
                     );
                   },
                 ),
-
-          /// ✅ NEW NAVBAR (بدل القديم)
-          const TechNavBar(currentIndex: 3),
+        
+          
         ],
       ),
+    bottomNavigationBar: const TechNavBar(currentIndex: 3),
     );
   }
 
@@ -1811,9 +1700,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                     ),
                   ),
                 ),
-          const TechNavBar(currentIndex: 3),
         ],
       ),
+    bottomNavigationBar: const TechNavBar(currentIndex: 7),
     );
   }
 
@@ -1958,6 +1847,7 @@ class _InProgressTasksScreenState extends State<InProgressTasksScreen> {
           ],
         ),
       ),
+      bottomNavigationBar: const TechNavBar(currentIndex: 1),
     );
   }
 }
@@ -2467,9 +2357,9 @@ class _UpdateTaskScreenState extends State<UpdateTaskScreen> {
                         ),
                       ),
                     ),
-                    if (showNavBar) const TechNavBar(currentIndex: 4),
                   ],
                 ),
+    bottomNavigationBar: const TechNavBar(currentIndex: 4),
     );
   }
 }

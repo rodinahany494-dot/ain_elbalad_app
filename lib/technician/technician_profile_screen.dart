@@ -213,126 +213,112 @@ class _ProfileSideMenuState extends State<ProfileSideMenu> {
   }
 
   // =========================
-  // UI BUILD
+  // UI BUILD (MODIFIED TO DRAWER)
   // =========================
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Material(
-        elevation: 12,
-        color: const Color(0xFFF3F3F3),
-        child: SizedBox(
-          width: 303,
-          height: MediaQuery.of(context).size.height,
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return Drawer(
+      width: 303,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.zero,
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 40),
+              const Center(
+                child: Text(
+                  "My Profile",
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0D4B97),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
                 children: [
-                  const SizedBox(height: 40),
-
-                  const Center(
+                  GestureDetector(
+                    onTap: _showAvatarSourceSheet,
+                    child: CircleAvatar(
+                      radius: 28,
+                      backgroundImage: _profilePhotoUrl != null
+                          ? NetworkImage(_profilePhotoUrl!)
+                          : null,
+                      child: _profilePhotoUrl == null
+                          ? const Icon(Icons.person, size: 30, color: Color(0xFF5E6773))
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
                     child: Text(
-                      "My Profile",
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF0D4B97),
+                      _loading ? "Loading..." : _displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: _showAvatarSourceSheet,
-                        child: CircleAvatar(
-                          radius: 28,
-                          backgroundImage: _profilePhotoUrl != null
-                              ? NetworkImage(_profilePhotoUrl!)
-                              : null,
-                          child: _profilePhotoUrl == null
-                              ? const Icon(Icons.person, size: 30, color: Color(0xFF5E6773))
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Text(
-                          _loading ? "Loading..." : _displayName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  _ProfileRow(
-                    icon: Icons.notifications,
-                    text: "Notifications",
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const NOTIFICATION_TECHScreen(),
-                        ),
-                      );
-                    },
-                  ),
-
-                  _ProfileRow(
-                    icon: Icons.help_outline,
-                    text: "Help & Support",
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const HelpSupportPage(),
-                        ),
-                      );
-                    },
-                  ),
-
-                  _ProfileRow(
-                    icon: Icons.privacy_tip_outlined,
-                    text: "Privacy Policy",
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const PrivacyPolicyPage(),
-                        ),
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  ListTile(
-                    leading: const Icon(Icons.logout, color: Colors.red),
-                    title: const Text(
-                      "Log Out",
-                      style: TextStyle(color: Colors.red),
-                    ),
-                    onTap: _showLogoutDialog,
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 32),
+              _ProfileRow(
+                icon: Icons.notifications,
+                text: "Notifications",
+                onTap: () {
+                  Navigator.pop(context); // Close Drawer
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const NOTIFICATION_TECHScreen(),
+                    ),
+                  );
+                },
+              ),
+              _ProfileRow(
+                icon: Icons.help_outline,
+                text: "Help & Support",
+                onTap: () {
+                  Navigator.pop(context); // Close Drawer
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const HelpSupportPage(),
+                    ),
+                  );
+                },
+              ),
+              _ProfileRow(
+                icon: Icons.privacy_tip_outlined,
+                text: "Privacy Policy",
+                onTap: () {
+                  Navigator.pop(context); // Close Drawer
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PrivacyPolicyPage(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.logout, color: Colors.red),
+                title: const Text(
+                  "Log Out",
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: _showLogoutDialog,
+              ),
+            ],
           ),
         ),
       ),
@@ -396,6 +382,7 @@ class _AvatarSourceButton extends StatelessWidget {
     );
   }
 }
+
 // ====================================================================
 // 6. Help & Support Screen
 // ====================================================================
@@ -509,9 +496,8 @@ class PrivacyPolicyPage extends StatelessWidget {
             const SizedBox(height: 16),
             Center(
               child: Text(
-                'The Ain El Balad application is committed to \n'
-                'protecting user privacy. By using the app, you agree to\n'
-                'the following:',
+                'The Ain El Balad app protects the privacy of  \n'
+                'technicians using the system\n',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -522,31 +508,25 @@ class PrivacyPolicyPage extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             sectionTitle('1. Data We Collect'),
-            bullet('Report images and location'),
-            bullet('Basic device info'),
-            bullet('Contact details (name & phone number)'),
+            bullet('Task details and updates'),
+            bullet('Photos uploaded during tasks'),
+            bullet('Device and location information'),
             const Divider(height: 30),
             sectionTitle('2. How We Use the Data'),
-            bullet('Processing and forwarding reports to authorities'),
-            bullet('Sending status updates'),
-            bullet('Improving app performance and services'),
+            bullet('Assign and manage tasks'),
+            bullet('Track task progress'),
+            bullet('Improve system performance'),
             const Divider(height: 30),
             sectionTitle('3. Data Sharing'),
-            bullet('Shared only with authorized government entities and support teams'),
-            bullet('Never shared with commercial parties'),
-            const Divider(height: 30),
+            bullet('Data is shared only with authorized supervisors and system administrators.'),            const Divider(height: 30),
             sectionTitle('4. Data Security'),
             bullet('Data is encrypted and stored on secure servers'),
             const Divider(height: 30),
             sectionTitle('5. App Permissions'),
-            bullet('Camera & gallery for uploading images'),
-            bullet('Location for accurate report placement'),
-            bullet('Notifications for report updates'),
-            const Divider(height: 30),
-            sectionTitle('6. User Rights'),
-            bullet('Access, edit, or delete personal data (where accounts exist)'),
-            bullet('Disable permissions anytime via device settings'),
-          ],
+            bullet('Camera for task photos'),
+            bullet('Location for task identification'),
+            bullet('Notifications for task updates'),          
+            ],
         ),
       ),
     );

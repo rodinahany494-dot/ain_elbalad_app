@@ -558,7 +558,7 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
     const Color uploadBlue = Color(0xFF2A6BA9);
 
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text(
           'Create My Ticket',
@@ -582,7 +582,7 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
                 20,
                 20,
                 20,
-                MediaQuery.of(context).viewInsets.bottom + 140,
+                MediaQuery.of(context).viewInsets.bottom + 30,
               ),
               child: Column(
                 children: [
