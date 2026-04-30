@@ -322,6 +322,8 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
   final ImagePicker _picker = ImagePicker();
   final TextEditingController _descriptionController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _descriptionFocusNode = FocusNode();
+  final GlobalKey _descriptionFieldKey = GlobalKey();
   final SpeechToText _speech = SpeechToText();
   File? _image;
   String _locationAddress = 'Unknown';
@@ -335,8 +337,22 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
   void dispose() {
     _descriptionController.dispose();
     _scrollController.dispose();
+    _descriptionFocusNode.dispose();
     _speech.stop();
     super.dispose();
+  }
+
+  Future<void> _scrollToDescriptionField() async {
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    if (!mounted) return;
+    final ctx = _descriptionFieldKey.currentContext;
+    if (ctx == null) return;
+    await Scrollable.ensureVisible(
+      ctx,
+      alignment: 0.25,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -558,7 +574,7 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
     const Color uploadBlue = Color(0xFF2A6BA9);
 
     return Scaffold(
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text(
           'Create My Ticket',
@@ -582,7 +598,7 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
                 20,
                 20,
                 20,
-                MediaQuery.of(context).viewInsets.bottom + 30,
+                MediaQuery.of(context).viewInsets.bottom + 300,
               ),
               child: Column(
                 children: [
@@ -640,59 +656,62 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
                   ),
                   const SizedBox(height: 24),
                   Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        GestureDetector(
-                          onTap: _openMap,
-                          child: const Icon(Icons.location_on,
-                              color: brandBlue, size: 24),
-                        ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: 311,
-                          height: 40,
-                          child: TextField(
-                            controller: _descriptionController,
-                            decoration: InputDecoration(
-                              hintText: 'Add description',
-                              hintStyle: const TextStyle(fontSize: 14),
-                              prefixIcon: IconButton(
-                                onPressed: _toggleListening,
-                                icon: Icon(
-                                  Icons.mic,
-                                  color: _isListening ? brandBlue : accentOrange,
-                                  size: 24,
-                                ),
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      GestureDetector(
+                        onTap: _openMap,
+                        child: const Icon(Icons.location_on,
+                            color: brandBlue, size: 24),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        key: _descriptionFieldKey,
+                        width: 311,
+                        height: 40,
+                        child: TextField(
+                          controller: _descriptionController,
+                          focusNode: _descriptionFocusNode,
+                          scrollPadding: const EdgeInsets.only(bottom: 260),
+                          onTap: _scrollToDescriptionField,
+                          decoration: InputDecoration(
+                            hintText: 'Add description',
+                            hintStyle: const TextStyle(fontSize: 14),
+                            prefixIcon: IconButton(
+                              onPressed: _toggleListening,
+                              icon: Icon(
+                                Icons.mic,
+                                color: _isListening ? brandBlue : accentOrange,
+                                size: 24,
                               ),
-                              prefixIconConstraints: const BoxConstraints(
-                                  minWidth: 32, minHeight: 32),
-                              suffixIcon: IconButton(
-                                icon: Icon(Icons.send,
-                                    color:
-                                        _isSubmitting ? Colors.grey : brandBlue),
-                                onPressed: _isSubmitting ? null : _submitReport,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(0),
-                                borderSide:
-                                    const BorderSide(color: Color(0xFFE0E0E0)),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(0),
-                                borderSide:
-                                    const BorderSide(color: Color(0xFFE0E0E0)),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(0),
-                                borderSide:
-                                    const BorderSide(color: brandBlue, width: 1.5),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                  vertical: 8, horizontal: 8),
                             ),
+                            prefixIconConstraints: const BoxConstraints(
+                                minWidth: 32, minHeight: 32),
+                            suffixIcon: IconButton(
+                              icon: Icon(Icons.send,
+                                  color: _isSubmitting ? Colors.grey : brandBlue),
+                              onPressed: _isSubmitting ? null : _submitReport,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(0),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFFE0E0E0)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(0),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFFE0E0E0)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(0),
+                              borderSide:
+                                  const BorderSide(color: brandBlue, width: 1.5),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                                vertical: 8, horizontal: 8),
                           ),
                         ),
-                      ],
+                      ),
+                    ],
                   ),
                 ],
               ),

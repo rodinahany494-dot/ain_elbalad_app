@@ -25,14 +25,60 @@ class _TechnicianLoginScreenState extends State<TechnicianLoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
+  Future<void> _showMessageDialog(String message) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+          contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          title: Row(
+            children: const [
+              Icon(Icons.error_outline, color: Color(0xFFD32F2F), size: 30),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Alert',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            message,
+            style: const TextStyle(
+              fontSize: 16,
+              height: 1.4,
+              color: Color(0xFF222222),
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFD32F2F),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _handleLogin() async {
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("برجاء إدخال البيانات")),
-      );
+      await _showMessageDialog("Please enter all required fields");
       return;
     }
 
@@ -44,35 +90,41 @@ class _TechnicianLoginScreenState extends State<TechnicianLoginScreen> {
         body: {'email': email, 'password': password},
       );
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['status'] == true) {
-          // حفظ بيانات الجلسة والتوكن
-          await AppSession.saveAuth(
-            token: data['token'],
-            displayName: data['user']?['name'],
-            email: data['user']?['email'],
-          );
+      String message = 'Login failed';
+      bool loginSuccess = false;
+      Map<String, dynamic>? data;
 
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const TechnicianHomeScreen()),
-            );
+      try {
+        final decoded = json.decode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          data = decoded;
+          final serverMessage = decoded['message']?.toString().trim();
+          if (serverMessage != null && serverMessage.isNotEmpty) {
+            message = serverMessage;
           }
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("بيانات الدخول غير صحيحة")),
+          loginSuccess = decoded['status'] == true;
+        }
+      } catch (_) {}
+
+      if (response.statusCode == 200 && loginSuccess && data != null) {
+        await AppSession.saveAuth(
+          token: data['token'],
+          displayName: data['user']?['name'],
+          email: data['user']?['email'],
+        );
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const TechnicianHomeScreen()),
           );
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("خطأ سيرفر: ")),
-        );
+        await _showMessageDialog(message);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("تعذر الاتصال بالسيرفر")),
+      await _showMessageDialog(
+        e.toString().replaceFirst('Exception: ', ''),
       );
     } finally {
       if (mounted) setState(() => isLoggingIn = false);
@@ -1569,6 +1621,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
     final String priority = taskData['priority']?.toString() ?? '';
     final String issueDate = taskData['issue_date']?.toString() ?? '';
     final String imageUrl = taskData['image']?.toString() ?? '';
+    final String supervisorComment =
+        taskData['supervisor_comment']?.toString() ?? '';
     final String statusLabel = _statusLabel(status);
     final Color statusColor = _statusColor(status);
     final bool showStartButton = status.toLowerCase().contains('new task');
@@ -1658,6 +1712,12 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                         buildDetailRow("Category :", category),
                         buildDetailRow("Priority :", priority),
                         buildDetailRow("Issue Date :", issueDate),
+                        if (supervisorComment.trim().isNotEmpty)
+                          buildDetailRow(
+                            "Supervisor Comment :",
+                            supervisorComment,
+                            maxLines: 4,
+                          ),
                         const SizedBox(height: 20),
                         if (showStartButton) ...[
                           Center(
@@ -1706,7 +1766,12 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
     );
   }
 
-  Widget buildDetailRow(String label, String value, {Color? valueColor}) {
+  Widget buildDetailRow(
+    String label,
+    String value, {
+    Color? valueColor,
+    int maxLines = 1,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
@@ -1726,8 +1791,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
           Flexible(
             child: Text(
               value,
-              maxLines: 1,
+              maxLines: maxLines,
               overflow: TextOverflow.ellipsis,
+              softWrap: maxLines != 1,
               style: TextStyle(
                 fontSize: 14,
                 color: valueColor ?? Colors.black54,

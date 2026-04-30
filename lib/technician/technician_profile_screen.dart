@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:ain_elbalad/app_config.dart';
 import 'package:ain_elbalad/app_session.dart';
+import 'package:ain_elbalad/main.dart';
 import 'package:ain_elbalad/technician/technician_screens.dart';
 
 class ProfileSideMenu extends StatefulWidget {
@@ -132,7 +133,12 @@ class _ProfileSideMenuState extends State<ProfileSideMenu> {
 
       if (!mounted) return;
 
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const Splash2Screen(),
+        ),
+        (route) => false,
+      );
     }
   }
 
