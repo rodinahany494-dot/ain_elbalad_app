@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1026824764650",
+    "project_id": "ain-el-balad",
+    "storage_bucket": "ain-el-balad.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1026824764650:android:2858265f8a4ee3a4e72b93",
+        "android_client_info": {
+          "package_name": "com.example.ain_elbalad"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBqqGFbWTdfiK-SV8bhdQdzoFNHWByuF94"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

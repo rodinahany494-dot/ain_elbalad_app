@@ -111,6 +111,7 @@ class _TechnicianLoginScreenState extends State<TechnicianLoginScreen> {
           token: data['token'],
           displayName: data['user']?['name'],
           email: data['user']?['email'],
+          role: 'technician',
         );
 
         if (mounted) {
@@ -2154,12 +2155,47 @@ class _UpdateTaskScreenState extends State<UpdateTaskScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
-    final image = await _picker.pickImage(source: ImageSource.gallery);
+  Future<void> _pickImage(ImageSource source) async {
+    final image = await _picker.pickImage(source: source, imageQuality: 85);
     if (!mounted) return;
     if (image != null) {
       setState(() => selectedImage = image);
     }
+  }
+
+  Future<void> _showImageSourceSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined),
+                title: const Text('Camera'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Gallery'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _submitUpdate() async {
@@ -2270,7 +2306,7 @@ class _UpdateTaskScreenState extends State<UpdateTaskScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   GestureDetector(
-                                    onTap: _pickImage,
+                                    onTap: _showImageSourceSheet,
                                     child: SizedBox(
                                       width: 327,
                                       height: 282,

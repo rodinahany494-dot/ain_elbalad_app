@@ -197,6 +197,17 @@ Future<void> _runSocialLogin(
   }
 }
 
+Future<Widget?> _resolveInitialScreen() async {
+  final token = await AppSession.token();
+  if (token == null || token.isEmpty) return null;
+
+  final role = (await AppSession.role())?.toLowerCase().trim();
+  if (role == 'technician') {
+    return const TechnicianHomeScreen();
+  }
+  return const HomeScreen();
+}
+
 void main() {
   runApp(const MyApp());
 }
@@ -244,13 +255,21 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 4), () {
-      if (!mounted) return;
-      // بعد 3 ثواني انتقلي لـ Splash2Screen
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const Splash2Screen()),
-      );
-    });
+    _routeAfterSplash();
+  }
+
+  Future<void> _routeAfterSplash() async {
+    await Future.delayed(const Duration(seconds: 4));
+    if (!mounted) return;
+
+    final nextScreen = await _resolveInitialScreen();
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => nextScreen ?? const Splash2Screen(),
+      ),
+    );
   }
 
   @override
@@ -272,8 +291,31 @@ class _SplashScreenState extends State<SplashScreen> {
 }
 
 // ===================== SPLASH 2 SCREEN =====================
-class Splash2Screen extends StatelessWidget {
+class Splash2Screen extends StatefulWidget {
   const Splash2Screen({super.key});
+
+  @override
+  State<Splash2Screen> createState() => _Splash2ScreenState();
+}
+
+class _Splash2ScreenState extends State<Splash2Screen> {
+  @override
+  void initState() {
+    super.initState();
+    _redirectIfLoggedIn();
+  }
+
+  Future<void> _redirectIfLoggedIn() async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+
+    final nextScreen = await _resolveInitialScreen();
+    if (!mounted || nextScreen == null) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => nextScreen),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

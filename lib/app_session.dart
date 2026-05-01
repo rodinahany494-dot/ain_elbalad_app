@@ -4,6 +4,7 @@ class AppSession {
   static String? _token;
   static String? _displayName;
   static String? _email;
+  static String? _role;
   static bool _loaded = false;
 
   static Future<void> _ensureLoaded() async {
@@ -13,6 +14,7 @@ class AppSession {
       _token = prefs.getString('token');
       _displayName = prefs.getString('display_name');
       _email = prefs.getString('email');
+      _role = prefs.getString('role');
     } catch (_) {}
     _loaded = true;
   }
@@ -21,6 +23,7 @@ class AppSession {
     required String token,
     String? displayName,
     String? email,
+    String role = 'user',
   }) async {
     _token = token;
     if (displayName != null && displayName.trim().isNotEmpty) {
@@ -29,6 +32,7 @@ class AppSession {
     if (email != null && email.trim().isNotEmpty) {
       _email = email.trim();
     }
+    _role = role.trim().isEmpty ? 'user' : role.trim();
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('token', _token!);
@@ -38,6 +42,7 @@ class AppSession {
       if (_email != null) {
         await prefs.setString('email', _email!);
       }
+      await prefs.setString('role', _role!);
     } catch (_) {}
   }
 
@@ -56,6 +61,11 @@ class AppSession {
     return _email;
   }
 
+  static Future<String?> role() async {
+    await _ensureLoaded();
+    return _role;
+  }
+
   static Future<void> saveDisplayName(String name) async {
     _displayName = name;
     try {
@@ -68,12 +78,14 @@ class AppSession {
     _token = null;
     _displayName = null;
     _email = null;
+    _role = null;
     _loaded = true;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('token');
       await prefs.remove('display_name');
       await prefs.remove('email');
+      await prefs.remove('role');
     } catch (_) {}
   }
 }
