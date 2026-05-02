@@ -329,6 +329,7 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
   String _locationAddress = 'Unknown';
   double _latitude = 0;
   double _longitude = 0;
+  bool _hasSelectedLocation = false;
   bool _isListening = false;
   bool _isSubmitting = false;
 
@@ -431,6 +432,24 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
     if (description.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please add a description.')),
+      );
+      return;
+    }
+    if (!_hasSelectedLocation) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Location required'),
+            content: const Text('Please select a location before submitting.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
       );
       return;
     }
@@ -543,6 +562,7 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
       if (longitude is num) {
         _longitude = longitude.toDouble();
       }
+      _hasSelectedLocation = true;
     });
   }
 
